@@ -1,0 +1,792 @@
+---
+title: "A11"
+author: "David Alejandro Ozuna Santiago"
+date: "17/6/2021"
+output: 
+  html_document: 
+    theme: united
+    toc: yes
+    # toc_float: yes
+    code_folding: hide
+    code_download: yes
+    number_sections: yes
+    fig_caption: yes
+    highlight: tango
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+
+```{r setup, include=FALSE, class.source = 'fold-hide'}
+knitr::opts_chunk$set(echo = TRUE,
+                      comment=">",
+  #echo=FALSE,  # Para mostrar el codigo R en la salida
+  # results = 'asis',
+  warning = FALSE,
+  message = FALSE)
+
+```
+
+# cargamos los datos
+
+
+```{r}
+library(tidyverse)
+library(patchwork)
+
+b2018 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/nd/b2018.csv", header = TRUE)
+
+b2019 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/nd/b2019.csv", header = TRUE)
+
+b2020 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/nd/b2020.csv", header = TRUE)
+
+bg <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/nd/bg.csv", header = TRUE)
+```
+
+
+# grafica de los datos
+
+Ahora creemos 3 graficos para cada año correspondiente de nuestro conjunto de datos, cargemos algunas librerias necesarias
+
+La siguiente forma de mapear nuestro conjunto de datos obtenido, es de la siguiente forma, considere que esta forma no involucra leer un shape file, convertir los datos a tipo geodata y todas esas particularidades, eso es lo interesante y practico, aunque no descartamos hacerlo de la forma correspondiente.
+
+Algo particular es que si necesitamos el shape file, solo para colocar el contorno del estado de chiapas, es por ello que debemos de leerlo.
+
+cargamos algunas librerias
+
+
+```{r}
+library(rgdal)
+library(dplyr)
+library(ggplot2)
+library(leaflet)      # libreria para graficar mapas interactivos
+library(sf)           # manejo de informacion geografica 
+library(viridis)      # paletas de colores
+library(RColorBrewer) # mas paletas de colores
+library(patchwork)
+```
+
+
+a continuación leemos nuestro archivo shapefile, algo que debemos identificar del shapefile es que su proyeccion geografica no coincide con la proyeccion geografica del conjunto de daos a trabajar, es por ello que se necesita realizar una transformación en la proyección de nuestro shapefile, para llevarlo a la proyección habitual de longitud y latitud que se conoce.
+
+
+```{r, cache=TRUE}
+my_spdf <- readOGR( 
+  dsn= "C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/A2", 
+  layer="ENTIDAD",
+  verbose=FALSE
+)
+
+# trasformamos a el sistema de coordenadas habitual
+
+my_spdf <- spTransform(my_spdf, CRS("+proj=longlat +datum=WGS84"))
+```
+
+y seleccionamos el estado de chiapas
+
+```{r}
+my_spdf_c <- my_spdf[my_spdf$nombre == "CHIAPAS",]
+```
+
+podemos observar mediante un grafico que el estado seleccionado sea el correcto.
+
+```{r}
+plot(my_spdf_c, col="#f2f2f2", bg="skyblue", lwd=0.25)
+```
+
+Ahora si estamos listos para realizar un grafico de nuestro conjunto de datos
+
+```{r, cache=TRUE, eval=T}
+b2018 %>% 
+  ggplot() +
+  geom_point(aes(x = Longitud, y = Latitud, colour = Rain),size =3)+
+  borders(my_spdf_c)+
+  coord_quickmap()+
+  theme_test()
+```
+
+Agregando un poco mas de detalle podemos obtener un grafico mas detallado para cada año y general
+
+```{r, cache=TRUE, eval=T}
+library(ggrepel)
+
+b2018 %>% 
+  ggplot(aes(x = Longitud, y = Latitud)) +
+  borders(my_spdf_c, fill = "antiquewhite1") +
+  geom_point(aes(colour = Rain), size = 4) +
+  scale_color_viridis_c(option = "plasma", trans = "sqrt",
+                        oob = scales::squish) +
+  coord_quickmap() +
+  theme_test()  +
+  xlab("Longitude") + ylab("Latitude") +
+  ggtitle("Chiapas 2018", subtitle = "Precipitación media por hora") +
+  theme(panel.grid.major = element_line(color = gray(0.5), linetype = "dashed", 
+        size = 0.5), panel.background = element_rect(fill = "aliceblue")) +
+  geom_text_repel(data = distinct(b2018, Longitud, .keep_all = TRUE), 
+                  aes(x = Longitud, y = Latitud, label = Station),
+                  box.padding   = 1, point.padding = 1, segment.color = 'grey50',
+                  size = 4, point.size = 4, segment.size = 1) -> p5;p5
+
+# unique(b2018$Station)
+# distinct(b2018, Longitud, .keep_all = T)
+# table(b2018$Latitud)
+b2019 %>% 
+  ggplot() +
+  borders(my_spdf_c, fill = "antiquewhite1") +
+  geom_point(aes(x = Longitud, y = Latitud, color = Rain, label=Station), size =4) +
+  geom_text_repel(data = distinct(b2019, Station, .keep_all = TRUE), 
+                  aes(x = Longitud, y = Latitud, label = Station),
+                  box.padding   = 1, point.padding = 1, segment.color = 'grey50',
+                  fontface = "bold", size = 4, point.size = 4, segment.size = 1)+
+  coord_quickmap() +
+  theme_test()  +
+  scale_color_viridis_c(option = "plasma", trans = "sqrt") +
+  xlab("Longitude") + ylab("Latitude") +
+  ggtitle("Chiapas 2019", subtitle = "Precipitación media por hora") +
+  theme(panel.grid.major = element_line(color = gray(0.5), linetype = "dashed", size = 0.5), 
+        panel.background = element_rect(fill = "aliceblue")) -> p6;p6
+
+
+b2020 %>% 
+ggplot() +
+  borders(my_spdf_c, fill = "antiquewhite1") +
+  geom_point(aes(x = Longitud, y = Latitud, color = Rain, label = Station), size =4) +
+  geom_text_repel(data = distinct(b2020, Station, .keep_all = TRUE), 
+                  aes(x = Longitud, y = Latitud, label = Station),
+                  box.padding   = 1, point.padding = 1, segment.color = 'grey50',
+                  fontface = "bold", size = 4, point.size = 4, segment.size = 1)+  
+  coord_quickmap() +
+  theme_test()  +
+  scale_color_viridis_c(option = "plasma", trans = "sqrt") +
+  xlab("Longitude") + ylab("Latitude") +
+  ggtitle("Chiapas 2020", subtitle = "Precipitación media por hora") +
+  theme(panel.grid.major = element_line(color = gray(0.5), linetype = "dashed", 
+        size = 0.5), panel.background = element_rect(fill = "aliceblue")) -> p7;p7
+
+bg %>% 
+ggplot() +
+  borders(my_spdf_c, fill = "antiquewhite1") +
+  geom_point(aes(x = Longitud, y = Latitud, color = Rain, label=Station), size =4) +
+  geom_text_repel(data = distinct(b2020, Station, .keep_all = TRUE), 
+                  aes(x = Longitud, y = Latitud, label = Station),
+                  box.padding   = 1, point.padding = 1, segment.color = 'grey50',
+                  fontface = "bold", size = 4, point.size = 4, segment.size = 1)+    
+  coord_quickmap() +
+  theme_test()  +
+  scale_color_viridis_c(option = "plasma", trans = "sqrt") +
+  xlab("Longitude") + ylab("Latitude") +
+  ggtitle("Chiapas 2018-2020", subtitle = "Precipitación media por hora") +
+  theme(panel.grid.major = element_line(color = gray(0.5), linetype = "dashed", 
+        size = 0.5), panel.background = element_rect(fill = "aliceblue")) -> p8;p8
+
+(p5 + p6)/(p7 + p8)
+
+```
+
+
+
+# Simulación del GEV
+
+
+Para este caso, lo que necesitamos son ubicaciones en el estado de Chiapas, esto con el objetivo de poder simular en esas ubicaciones el modelo de valores extremos, para ello vamos  utilizar la libreria `geoR`, esto con el fin de predecir en este caso 40 ubicaciones en la zona de estudio. 
+
+```{r}
+library(geoR)
+
+bor1 <- my_spdf_c@polygons[[1]]@Polygons[[1]]@coords
+
+sim1 <- grf(n= 40, grid = "irreg", cov.pars=c(2, 1), borders = bor1, nugget = 5, mean = 200,
+            cov.model = "gaussian")
+```
+
+Podemos observar el mapa de las ubicaciones de interes simuladas, estas ubicaciones se encuentran aleatoriamente en la zona de estudio, lo unico que nos interesa en este caso es la ubicación de estos puntos simulados
+
+```{r}
+par(mar=c(3,3,3,0))
+points(sim1, main ="Chiapas SIM")
+
+```
+
+
+## ajuste de la gev
+
+Conforme a la metodologia de  Davison, A.C., Padoan, S.A. and Ribatet. Lo que realizo es en los 40 sitios generados aleatoriamente, voy a obtener 50 observaciones en cada uno de ellos mediante la generación de valores de una 
+
+
+```{r}
+# image()
+
+x.grid <- as.numeric(coord[,1])
+y.grid <- as.numeric(coord[,2])
+map.latent(fitted = mc, 
+           x = x.grid, 
+           y = y.grid, 
+           param = "shape",
+           # col = 'heat.colors(5)',
+           plot.contour = TRUE,
+           show.data = TRUE)
+
+```
+
+
+```{r, cache=TRUE}
+library(SpatialExtremes)
+## Not run:
+## Generate realizations from the model
+
+n.site <- 40
+n.obs <- 50
+
+# class(sim1$coords)
+coord <- cbind(lon = sim1$coords[,1], lat = sim1$coords[,2])
+
+gp.loc   <- rgp(1, coord, "powexp", sill = 4, range = 20, smooth = 1)
+gp.scale <- rgp(1, coord, "powexp", sill = 4, range = 20, smooth = 1)
+gp.shape <- rgp(1, coord, "powexp", sill = 2, range = 20, smooth = 1)
+
+# locs   <- 26 + 0.5 * coord[,"lon"] + gp.loc
+# scales <- 10 + 0.2 * coord[,"lat"] + gp.scale
+# shapes <- 0.15 + gp.shape
+
+locs   <-  gp.loc
+scales <-  abs(gp.scale)
+shapes <-  gp.shape
+
+
+
+data <- matrix(NA, n.obs, n.site)
+
+for (i in 1:n.site)
+  data[,i] <- rgev(n.obs, locs[i], scales[i], shapes[i])
+
+loc.form   <- y ~ 1
+scale.form <- y ~ 1
+shape.form <- y ~ 1
+
+hyper <- list()
+hyper$sills <- list(loc = c(1,8), scale = c(1,1), shape = c(1,0.02))
+hyper$ranges <- list(loc = c(2,20), scale = c(1,5), shape = c(1, 10))
+hyper$smooths <- list(loc = c(1,1/3), scale = c(1,1/3), shape = c(1, 1/3))
+hyper$betaMeans <- list(loc = 20, 
+                        scale = 15, 
+                        shape = 10)
+hyper$betaIcov <- list(loc   = solve(diag(c(10), 1, 1)),
+                       scale = solve(diag(c(10), 1, 1)),
+                       shape = solve(diag(c(10), 1, 1)))
+
+## We will use an exponential covariance function so the jump sizes for
+## the shape parameter of the covariance function are null.
+
+prop <- list(gev = c(1.2, 0.08, 0.08), ranges = c(0.7, 0.8, 0.7), smooths = c(0,0,0))
+start <- list(sills   = c(4, .36, 0.009), 
+              ranges  = c(24, 17, 16), 
+              smooths = c(1, 1, 1), 
+              beta = list(loc   = c(0.2), 
+                          scale = c(0.3),
+                          shape = c(20)))
+
+mc <- latent(data, coord, loc.form = loc.form, scale.form = scale.form,
+             shape.form = shape.form, hyper = hyper, prop = prop, start = start,
+             n = 10000, burn.in = 5000, thin = 15)
+mc
+
+modelo
+parametros
+resultados
+poco texto, diapositivas
+
+
+mc1 <- latent(data, coord, 
+             loc.form = loc.form, 
+             scale.form = scale.form,
+             shape.form = shape.form, 
+             hyper = hyper, 
+             prop = prop, 
+             start = start,
+             n = 10000, 
+             burn.in = 5000, 
+             thin = 15)
+mc1
+
+mc2 <- latent(data, coord, 
+             loc.form = loc.form, 
+             scale.form = scale.form,
+             shape.form = shape.form, 
+             hyper = hyper, 
+             prop = prop, 
+             start = start,
+             n = 10000, 
+             burn.in = 5000, 
+             thin = 15)
+mc2
+
+mc3 <- latent(data, coord, 
+             loc.form = loc.form, 
+             scale.form = scale.form,
+             shape.form = shape.form, 
+             hyper = hyper, 
+             prop = prop, 
+             start = start,
+             n = 10000, 
+             burn.in = 5000, 
+             thin = 15)
+mc3
+```
+
+
+
+
+dsgn.mat The design matrix.
+
+sill = umbral
+
+ranges = rango
+
+smooths = forma
+
+
+### diagnosticos
+
+Un vector de longitud 3 que devuelve el DIC, el número efectivo de parámetros eNoP y una estimación de la desviación esperada Dbar.
+
+```{r}
+library(broom)
+library(coda)
+library(broom.mixed)
+library(brms)
+library(bayesplot)
+library(lattice)
+```
+
+### parametro de localización
+
+```{r, cache=TRUE}
+library(lattice)
+mc1$chain.loc <- as.data.frame(mc1$chain.loc) %>% 
+  mutate(chain = 1)
+mc2$chain.loc <- as.data.frame(mc2$chain.loc) %>% 
+  mutate(chain = 2)
+mc3$chain.loc <- as.data.frame(mc3$chain.loc) %>% 
+  mutate(chain = 3)
+
+mc.loc <-  mc1$chain.loc %>% 
+  union_all(mc2$chain.loc) %>% union_all(mc3$chain.loc)
+
+post <- posterior_samples(mc.loc, add_chain = T)
+mcmc_dens_overlay(post)
+
+
+post %>% 
+  select(lm1, sill, range, loc1, loc2, loc3, loc4) %>% 
+  mcmc_acf()
+
+post %>% 
+  select(lm1, sill, range, loc1, loc2, loc3, loc4) %>% 
+  mcmc_trace()
+
+post %>% 
+  select(lm1, sill, range, loc1, loc2, loc3, loc4) %>% 
+  mcmc_dens()
+
+
+post %>% select(lm1) %>% mcmc_trace()
+
+
+library(coda)
+
+coda::raftery.diag(posterior_samples(post))
+
+# coda::gelman.diag(mcmc.list(as.mcmc(mc1$chain.loc[,c(-4,-9)]), 
+#                             as.mcmc(mc2$chain.loc[,c(-4,-9)]), 
+#                             as.mcmc(mc3$chain.loc[,c(-4,-9)])))
+# 
+# coda::gelman.diag(mcmc.list(as.mcmc(mc1$chain.loc[,1]), 
+#                             as.mcmc(mc2$chain.loc[,1]), 
+#                             as.mcmc(mc3$chain.loc[,1])))
+
+BMu1.mcmc<-mcmc.list(as.mcmc(mc1$chain.loc[,c(-4,-9)]), 
+                     as.mcmc(mc2$chain.loc[,c(-4,-9)]),
+                     as.mcmc(mc3$chain.loc[,c(-4,-9)]))
+
+summary(BMu1.mcmc)
+xyplot(BMu1.mcmc)
+densityplot(BMu1.mcmc)                             #Densidades
+plot(BMu1.mcmc)
+# layout(matrix(1:12, 3,4));  
+
+traceplot(BMu1.mcmc)
+
+#Grafica de autocorrelacion
+autocorr.plot(BMu1.mcmc, auto.layout = TRUE, ask =F)
+coda::acfplot(BMu1.mcmc)
+
+# gelman.diag(BMu1.mcmc)
+# 
+# gelman.plot(BMu1.mcmc)
+
+geweke.diag(BMu1.mcmc)
+#geweke.plot(BMu1.mcmc)
+raftery.diag(BMu1.mcmc)
+# heidel.diag(BMu1.mcmc)
+
+
+```
+
+
+
+### parametro de escala
+
+```{r, cache=TRUE}
+mc1$chain.scale <- as.data.frame(mc1$chain.scale) %>% 
+  mutate(chain = 1)
+mc2$chain.scale <- as.data.frame(mc2$chain.scale) %>% 
+  mutate(chain = 2)
+mc3$chain.scale <- as.data.frame(mc3$chain.scale) %>% 
+  mutate(chain = 3)
+
+mc.loc <-  mc1$chain.scale %>% 
+  union_all(mc2$chain.scale) %>% union_all(mc3$chain.scale)
+
+post <- posterior_samples(mc.loc, add_chain = T)
+mcmc_dens_overlay(post)
+
+
+post %>% 
+  select(lm1, sill, range, scale1, scale2, scale3, scale4) %>% 
+  mcmc_acf()
+
+post %>% 
+  select(lm1, sill, range, scale1, scale2, scale3, scale4) %>% 
+  mcmc_trace()
+
+post %>% 
+  select(lm1, sill, range, scale1, scale2, scale3, scale4) %>% 
+  mcmc_dens()
+
+
+post %>% select(lm1) %>% mcmc_trace()
+
+
+library(coda)
+
+coda::raftery.diag(posterior_samples(post))
+
+# coda::gelman.diag(mcmc.list(as.mcmc(mc1$chain.scale[,c(-4,-9)]), 
+#                             as.mcmc(mc2$chain.scale[,c(-4,-9)]), 
+#                             as.mcmc(mc3$chain.scale[,c(-4,-9)])))
+# 
+# coda::gelman.diag(mcmc.list(as.mcmc(mc1$chain.scale[,1]), 
+#                             as.mcmc(mc2$chain.scale[,1]), 
+#                             as.mcmc(mc3$chain.scale[,1])))
+
+BMu1.mcmc<-mcmc.list(as.mcmc(mc1$chain.scale[,c(-4,-9)]), 
+                     as.mcmc(mc2$chain.scale[,c(-4,-9)]),
+                     as.mcmc(mc3$chain.scale[,c(-4,-9)]))
+
+summary(BMu1.mcmc)
+xyplot(BMu1.mcmc)
+densityplot(BMu1.mcmc)                             #Densidades
+plot(BMu1.mcmc)
+# layout(matrix(1:12, 3,4));  
+
+traceplot(BMu1.mcmc)
+
+#Grafica de autocorrelacion
+autocorr.plot(BMu1.mcmc, auto.layout = TRUE, ask =F)
+coda::acfplot(BMu1.mcmc)
+
+ # gelman.diag(BMu1.mcmc)
+# 
+# gelman.plot(BMu1.mcmc)
+
+geweke.diag(BMu1.mcmc)
+#geweke.plot(BMu1.mcmc)
+raftery.diag(BMu1.mcmc)
+# heidel.diag(BMu1.mcmc)
+
+
+```
+
+
+
+
+
+
+### parametro de forma
+
+```{r, cache=TRUE}
+mc1$chain.shape <- as.data.frame(mc1$chain.shape) %>% 
+  mutate(chain = 1)
+mc2$chain.shape <- as.data.frame(mc2$chain.shape) %>% 
+  mutate(chain = 2)
+mc3$chain.shape <- as.data.frame(mc3$chain.shape) %>% 
+  mutate(chain = 3)
+
+mc.loc <-  mc1$chain.shape %>% 
+  union_all(mc2$chain.shape) %>% union_all(mc3$chain.shape)
+
+post <- posterior_samples(mc.loc, add_chain = T)
+mcmc_dens_overlay(post)
+
+
+post %>% 
+  select(lm1, sill, range, shape1, shape2, shape3, shape4) %>% 
+  mcmc_acf()
+
+post %>% 
+  select(lm1, sill, range, shape1, shape2, shape3, shape4) %>% 
+  mcmc_trace()
+
+post %>% 
+  select(lm1, sill, range, shape1, shape2, shape3, shape4) %>% 
+  mcmc_dens()
+
+
+post %>% select(lm1) %>% mcmc_trace()
+
+
+library(coda)
+
+coda::raftery.diag(posterior_samples(post))
+
+# coda::gelman.diag(mcmc.list(as.mcmc(mc1$chain.shape[,c(-4,-9)]), 
+#                             as.mcmc(mc2$chain.shape[,c(-4,-9)]), 
+#                             as.mcmc(mc3$chain.shape[,c(-4,-9)])))
+# 
+# coda::gelman.diag(mcmc.list(as.mcmc(mc1$chain.shape[,1]), 
+#                             as.mcmc(mc2$chain.shape[,1]), 
+#                             as.mcmc(mc3$chain.shape[,1])))
+
+BMu1.mcmc<-mcmc.list(as.mcmc(mc1$chain.shape[,c(-4,-9)]), 
+                     as.mcmc(mc2$chain.shape[,c(-4,-9)]),
+                     as.mcmc(mc3$chain.shape[,c(-4,-9)]))
+
+summary(BMu1.mcmc)
+xyplot(BMu1.mcmc)
+densityplot(BMu1.mcmc)                             #Densidades
+plot(BMu1.mcmc)
+# layout(matrix(1:12, 3,4));  
+
+traceplot(BMu1.mcmc)
+
+#Grafica de autocorrelacion
+autocorr.plot(BMu1.mcmc, auto.layout = TRUE, ask =F)
+coda::acfplot(BMu1.mcmc)
+
+ # gelman.diag(BMu1.mcmc)
+# 
+# gelman.plot(BMu1.mcmc)
+
+geweke.diag(BMu1.mcmc)
+#geweke.plot(BMu1.mcmc)
+raftery.diag(BMu1.mcmc)
+# heidel.diag(BMu1.mcmc)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+# extra
+
+```{r, eval=FALSE}
+bg <- bg %>% 
+  dplyr::filter(Rain > 30)
+
+bg %>% 
+  plot_density(x = Rain,
+               title = "(2018-2020) basic density plot general of cum_rain",
+               fill = "salmon1")
+
+table(bg$Station)
+library(SpatialExtremes)
+## Not run:
+## Generate realizations from the model
+n.site <- 4 # numero de sitios muestreados
+
+n.obs  <- 11 # numero de observaciones tomada en cada sitio muestreado
+
+coord  <- bg %>%                    # creamos la matrix de coordenadas
+  select(Longitud, Latitud) %>%       # esta matrix de coordenadas solo incluye el
+  unique()                            # numero de sitios donde se muestreo
+
+coord  <- cbind(lon = coord$Longitud, lat = coord$Latitud) # matrix de coordenadas
+# sin mediciones repetidas
+# class(coord)
+# coord <- cbind(lon = runif(n.site, -10, 10), lat = runif(n.site, -10 , 10))
+
+# creamos un proceso gaussiano para cada parametro  de la GEV, esta parte se deja
+# a elección del autor elegirlo.
+
+gp.loc   <- SpatialExtremes::rgp(1, coord, "powexp", sill = 0.01, range = 10, smooth = 1)
+gp.scale <- SpatialExtremes::rgp(1, coord, "powexp", sill = 0.001, range = 15, smooth = 1)
+gp.shape <- SpatialExtremes::rgp(1, coord, "powexp", sill = 0.001, range = 20, smooth = 1)
+
+
+locs   <- 26 + 0.5 * coord[,"lon"] + gp.loc
+scales <- 10 + 0.2 * coord[,"lat"] + gp.scale
+shapes <- 0.15 + gp.shape
+
+SpatialExtremes::rgev(n.obs, locs[1], scales[1], shapes[1])
+
+# Estimated Parameters:
+#         xi         mu       beta 
+#  0.3944641 34.1387472  4.7882714 
+
+data <- matrix(NA, n.obs, n.site)
+# 
+# for (i in 1:n.site)
+#   data[,i] <- SpatialExtremes::rgev(n.obs, locs[i], scales[i], shapes[i])
+dim(bg)
+table(bg$Station)
+
+data[,1]  <-bg %>% 
+  dplyr::select(Rain, Station) %>% 
+  dplyr::filter(Station == "Arriaga") %>% 
+  # slice(1:5) %>% 
+  dplyr::select(Rain) %>% 
+  dplyr::arrange(-Rain) %>% 
+  slice(1:11) %>% 
+  as.matrix()
+data[,2]  <-bg %>% 
+  dplyr::select(Rain, Station) %>% 
+  dplyr::filter(Station == "Comitan") %>% 
+  # slice(1:5) %>% 
+  select(Rain) %>% 
+  arrange(-Rain) %>% slice(1:11) %>% 
+  as.matrix()
+# data[,3]  <- bg %>% 
+#   dplyr::select(cum_rain, Station) %>% 
+#   dplyr::filter(Station == "scdlc") %>% 
+#   # slice(1:5) %>% 
+#   select(cum_rain) %>% 
+#   arrange(-cum_rain) %>% # slice(1:61) %>% 
+#   as.matrix()
+data[,3]  <- bg %>% 
+  dplyr::select(Rain, Station) %>% 
+  dplyr::filter(Station == "Tapachula") %>% 
+  # slice(1:5) %>% 
+  select(Rain) %>% 
+  arrange(-Rain) %>% slice(1:11) %>% 
+  as.matrix()
+data[,4]  <- bg %>% 
+  dplyr::select(Rain, Station) %>% 
+  dplyr::filter(Station == "Tuxtla") %>% 
+  # slice(1:5) %>% 
+  select(Rain) %>% 
+  arrange(-Rain) %>%  slice(1:11) %>% 
+  as.matrix()
+
+# b2018[b2018$Station == "Arriaga", 3]
+# data[,5] <- b2018[b2018$Station == "tuxtlag", 3]
+# data[,1]  <- b2018[1:10,3]
+
+# loc.form   <- y ~ lon
+# scale.form <- y ~ lat
+# shape.form <- y ~ 1
+
+loc.form   <- y ~ 1
+scale.form <- y ~ 1
+shape.form <- y ~ 1
+
+hyper <- list()
+hyper$sills     <- list(loc = c(1,8), 
+                        scale = c(1,1), 
+                        shape = c(1,0.02))
+hyper$ranges    <- list(loc = c(2,20), 
+                        scale = c(1,5), 
+                        shape = c(1, 10))
+hyper$smooths   <- list(loc = c(1,1/3), 
+                        scale = c(1,1/3), 
+                        shape = c(1, 1/3))
+hyper$betaMeans <- list(loc = 9, 
+                        scale = 6, 
+                        shape = 2)
+hyper$betaIcov  <- list(loc =   solve(diag(c(10), 1, 1)),
+                        scale = solve(diag(c(10), 1, 1)),
+                        shape = solve(diag(c(0.13), 1, 1)))
+## We will use an exponential covariance function so the jump sizes for
+## the shape parameter of the covariance function are null.
+
+prop <- list(gev = c(1.2, 0.08, 0.08), ranges = c(0.7, 0.8, 0.7), smooths = c(0,0,0))
+
+start <- list(sills = c(4, .36, 0.009), 
+              ranges = c(24, 17, 16), 
+              smooths= c(1, 1, 1), 
+              beta = list(loc = c(24), 
+                          scale = c(7.31),
+                          shape = c(0.54)))
+
+# Estimated Parameters:
+#   xi         mu       beta 
+# 0.5304988 37.3221090  7.4043417 
+
+mc1 <- latent(data, coord, 
+             loc.form = loc.form, 
+             scale.form = scale.form,
+             shape.form = shape.form, 
+             hyper = hyper, 
+             prop = prop, 
+             start = start,
+             n = 10000, 
+             burn.in = 5000, 
+             thin = 15)
+mc1
+
+mc2 <- latent(data, coord, 
+             loc.form = loc.form, 
+             scale.form = scale.form,
+             shape.form = shape.form, 
+             hyper = hyper, 
+             prop = prop, 
+             start = start,
+             n = 10000, 
+             burn.in = 5000, 
+             thin = 15)
+mc2
+
+mc3 <- latent(data, coord, 
+             loc.form = loc.form, 
+             scale.form = scale.form,
+             shape.form = shape.form, 
+             hyper = hyper, 
+             prop = prop, 
+             start = start,
+             n = 10000, 
+             burn.in = 5000, 
+             thin = 15)
+mc3
+## End(Not run)
+
+# a <- summary(mc)
+# 
+# a
+# head(mc$chain.loc)
+# head(mc$chain.scale)
+# head(mc$chain.shape)
+# head(mc$loc.dsgn.mat)
+# head(mc$scale.dsgn.mat)
+# head(mc$shape.dsgn.mat)
+
+# tidybayes::add_residual_draws(mc$chain.loc[,6:10])
+
+# mod1_sim <- coda::coda.samples(model = mc, 
+#                          variable.names = chain.loc,
+                         # n.iter = 5000)
+```
+
+
+

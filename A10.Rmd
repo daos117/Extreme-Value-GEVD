@@ -1,0 +1,2169 @@
+---
+title: "A10"
+author: "David Alejandro Ozuna Santiago"
+date: "3/6/2021"
+output: 
+  html_document: 
+    theme: united
+    toc: yes
+    # toc_float: yes
+    code_folding: hide
+    code_download: yes
+    number_sections: yes
+    fig_caption: yes
+    highlight: tango
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+
+```{r setup, include=FALSE, class.source = 'fold-hide'}
+knitr::opts_chunk$set(echo = TRUE,
+                      comment=">",
+  #echo=FALSE,  # Para mostrar el codigo R en la salida
+  # results = 'asis',
+  warning = FALSE,
+  message = FALSE)
+
+```
+
+# Descripción de la base de datos
+
+El conjunto de datos contiene ubicaciones de estaciones meteorologicas ubicadas en el pais de Mexico, algunos detalles sobre las estaciones meteorologicas son los siguentes:
+
+
+* ¿Cuantas estaciones tenemos?
+
+el conjunto de datos contiene 493 archivos de excel, donde estos se dividen en estaciones para los estados correspondientes que son Chiapas (5), Tabasco (1) y Veracruz (6) con 5, 1 y 6 estaciones meteorologicas en cada estado correspondientemente, entonces los 493 archivos van variando conforme al tiempo, algunos conforme a años, otros conforme a meses, otros conforme a conjunto de meses en las 12 estaciones meteorologicas muestreadas, pero todos varian conforme a dias respectivamente. A continuación se muestran los nombres de las estaciones que contienen los estados correspondientes:
+
+Veracruz (6 estaciones)
+
+- + Alvarado 
+- + Coatzacoalcos
+- + Orizaba
+- + Tuxpan 
+- + Veracruz
+- + Xalapa
+
+Chiapas (5 estaciones)
+
+
+- + Arriaga 
+- + Comitan 
+- + San Cristobal de las Casas
+- + Tapachula
+- + Tuxtla Gutierrez
+
+
+Tabasco (1 estación)
+
+- + Villahermosa
+
+
+Asi tambien existen muchos archivos de excel vacios, entre ellos se encuentran.
+
+## descripción de variables
+
+las variables que se incluyen en los conjuntos de datos son los siguientes:
+
++ SR =  Radiación solar
+
++ Rain = Lluvia (tomada en el tiempo en horas)
+
++ DP = Temperatura al punto de rocío.
+
++ RH = Humedad relativa
+
++ TS = Temperatura a 10 cm de la superficie
+
++ ATC = Air traffic control (trafico de control aereo)
+
++ WS =  velocidad del viento
+
++ WD = Dirección del viento
+
++ QFF = QFF es un código aeronáutico. Es la presión MSL(Mean Sea Level, altitud tomando como referencia el nivel medio del mar) derivada de las condiciones de la  estación meteorológica local. De acuerdo con la  práctica meteorológica QFF es la presión media al nivel del mar, derivada  teniendo en cuenta las condiciones de temperatura reales.
+
++ BP = La presión atmosférica, también conocida como  presión barométrica (después del barómetro), es la presión dentro de la atmósfera de la Tierra.
+
+## Descripción de las estaciones meteorologicas
+
+__Descripción de una Estación Sinóptica Meteorológica - ESIME__
+
+Una Estación Sinóptica Meteorológica es un conjunto de dispositivos eléctricos que realizan mediciones de las variables meteorológicas de manera automática. Generan una base de datos y generan un mensaje sinóptico cada tres horas.
+
+Los mensajes sinópticos son reportes que se generan simultáneamente en todos los observatorios cada tres horas y presentan información meteorológica de tiempo presente y pasado de manera codificada. Los mensajes sinópticos se rigen por el Tiempo Universal Coordinado (UTC).
+
+Nota: El área representativa de las estaciones es de 5 km de radio aproximadamente, en terreno plano, excepto en terreno montañoso. (Referencia OMM número 100 y 168)
+
+```{r, cache=TRUE, fig.cap="Estación ESIME"}
+knitr::include_graphics("f0.jpg", dpi = 10)
+```
+
+
+## descripción del estudio
+
+Muy bien, principalmente estamos interesados en medir en primer lugar la lluvia (rain) mediante valores extremos y el uso de geoestadistica, pero para ello debemos considerar la lluvia o mejor conocida como precipitaciones extremas.
+
+Conforme a Robert Monjo, Wikipedia y diversos autoeres, podemos categorizar la precipitación conforme a estudios de la  Agencia Estatal de Meteorología, los cuales indican que 
+
+> Si queremos estudiar el comportamiento de la lluvia en el tiempo, debemos fijarnos en cómo se distribuye la intensidad a lo largo del mismo. Usualmente se usa el concepto de intensidad para referirnos a valores medio, es decir, a una cierta cantidad de precipitación registrada en un tiempo determinado: una hora, un minuto, o bien el paso entre dos oscilaciones de tiempo de una estación automática.
+
+Tabla 1. Clasificación de la lluvia según la intensidad media en una hora. Agencia Estatal de
+Meteorología. 
+
+```{r, cache=TRUE}
+knitr::include_graphics("f1.png", dpi = 10)
+```
+
+Muy bien, entonces para nuestro conjunto de datos tenemos las mediciones que van desde 10 min, 1 hora, 3 horas, 6 horas y 24 horas, entonces para tomar en cuenta la información anterior nos vamos a centrar en las mediciones que se realizaron por hora. 
+
+A continuación como ejemplo vamos a seleccionar el conjunto de datos de Chiapas (esto debido a que tiene 5 estaciones pero tambien pudimos seleccionar Veracruz) y conforme a la metodologia de A. C. Davison, S. A. Padoan and M. Ribatet, considerare la precipitación maxima diaria de los meses de junio a octubre para los años 2018, 2019 y 2020, en 5 estaciones meteorológicas en la región de Chiapas, proporcionada por el servicio meteorológico nacional. La elección de estos meses es dedibo a que  este conjunto de meses se encuentran dentro del verano, algo que es importante destacar es el comentario de Gery-co Prankster, (2010), el cual indica que las precipitaciones son mayores es esa temporada, sin embargo el Verano: inicia el 21 de junio y finaliza el 22 de septiembre. Por lo tanto para el analisis se consideran los meses de junio a octubre.
+
+<!-- la metodologia de A. C. Davison, S. A. Padoan and M. Ribatet utilizamos la precipitación máxima diaria de verano para los años 2018-2020 en 5 estaciones meteorológicas en la región de Chiapas, proporcionada por el servicio meteorológico nacional. -->
+
+Como bien sabemos, Chiapas tiene 5 estaciones, en donde en nuestro conjunto de datos se encuentra la siguiente información.
+
+
+<!-- - Arriaga : -->
+
+<!--   + 2006: ene-dic -->
+<!--   + 2007: ene-jun -->
+<!--   + 2009: may-dic -->
+<!--   + 2010: **mar** -->
+<!--   + 2011: sep-dic -->
+<!--   + 2012: ene-nov -->
+<!--   + 2014: feb-may -->
+<!--   + 2018: ene-jun -->
+<!--   + 2019: **sep, oct, nov** -->
+<!--   + 2020: **ago** -->
+
+<!-- - Comitan  -->
+
+<!--   + 2013: ene-dic -->
+<!--   + 2014: ene-dic -->
+<!--   + 2015: ene-dic -->
+<!--   + 2016: ene-dic -->
+<!--   + 2017: ene-dic -->
+<!--   + 2018: ene-jun, jul-dic -->
+<!--   + 2019: ene-dic -->
+<!--   + 2020: ene-dic -->
+
+<!-- - San Cristobal de las Casas -->
+
+<!--   + 2013: ene-dic -->
+<!--   + 2014: ene-dic -->
+<!--   + 2015: ene-dic -->
+<!--   + 2016: ene-dic -->
+<!--   + 2017: ene-dic -->
+<!--   + 2018: ene-jun, jul-dic -->
+<!--   + 2019: ene-dic -->
+<!--   + 2020: **oct, nov, dic** -->
+
+<!-- - Tapachula -->
+
+<!--   + 2011: *feb* -->
+<!--   + 2012: ene-oct -->
+<!--   + 2013: ene-dic -->
+<!--   + 2014: **oct, nov** -->
+<!--   + 2015: **abr, may, oct, nov, dic** -->
+<!--   + 2017: nov-dic -->
+<!--   + 2018: ene-jun, jul-dic  -->
+<!--   + 2019: **feb** -->
+<!--   + 2020: ene-dic -->
+
+<!-- - Tuxtla Gutierrez -->
+
+<!--   + 2013: ene-dic -->
+<!--   + 2014: ene-dic -->
+<!--   + 2015: ene-dic -->
+<!--   + 2016: ene-dic -->
+<!--   + 2017: ene-dic -->
+<!--   + 2018: ene-jun, jul-dic  -->
+<!--   + 2019: ene-dic -->
+<!--   + 2020: ene-dic -->
+
+
+- Arriaga :
+
+  + 2006: ene-dic
+  + 2007: ene-jun
+  + 2009: may-dic
+  + 2010: **mar**
+  + 2011: sep-dic
+  + 2012: ene-nov
+  + 2014: feb-may
+  + 2018: ene-jun
+  + 2019: ene-dic
+  + 2020: ene-dic
+  
+- Comitan 
+
+  + 2013: ene-dic
+  + 2014: ene-dic
+  + 2015: ene-dic
+  + 2016: ene-dic
+  + 2017: ene-dic
+  + 2018: ene-jun, jul-dic
+  + 2019: ene-dic
+  + 2020: ene-dic
+  
+- San Cristobal de las Casas
+
+  + 2013: ene-dic
+  + 2014: ene-dic
+  + 2015: ene-dic
+  + 2016: ene-dic
+  + 2017: ene-dic
+  + 2018: ene-jun, jul-dic
+  + 2019: ene-dic
+  + 2020: ene-dic
+  
+- Tapachula
+
+  + 2011: *feb*
+  + 2012: ene-oct
+  + 2013: ene-dic
+  + 2014: **oct, nov**
+  + 2015: **abr, may, oct, nov, dic**
+  + 2017: nov-dic
+  + 2018: ene-jun, jul-dic 
+  + 2019: **feb**
+  + 2020: ene-dic
+  
+- Tuxtla Gutierrez
+
+  + 2013: ene-dic
+  + 2014: ene-dic
+  + 2015: ene-dic
+  + 2016: ene-dic
+  + 2017: ene-dic
+  + 2018: ene-jun, jul-dic 
+  + 2019: ene-dic
+  + 2020: ene-dic
+
+
+# Limpieza de la base de datos
+
+## cargamos los datos
+
+
+```{r, cache=TRUE, eval = F}
+arriaga2018 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/Arriaga 2018.csv", header = TRUE)
+
+arriaga2019 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/Arriaga 2019.csv", header = TRUE)
+
+arriaga2020 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/Arriaga 2020.csv", header = TRUE)
+
+# Thu May 20 02:02:38 2021 ------------------------------
+
+comitan2018 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/Comitan 2018.csv", header = TRUE)
+
+comitan2019 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/Comitan 2019.csv", header = TRUE)
+
+comitan2020 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/Comitan 2020.csv", header = TRUE)
+
+# Thu May 20 02:03:03 2021 ------------------------------
+
+scdlc2018 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/scdlc 2018.csv", header = TRUE)
+
+scdlc2019 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/scdlc 2019.csv", header = TRUE)
+
+scdlc2020 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/scdlc 2020.csv", header = TRUE)
+
+# Thu May 20 02:07:18 2021 ------------------------------
+
+tapachula2018 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/Tapachula 2018.csv", header = TRUE)
+
+tapachula2019 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/Tapachula 2019.csv", header = TRUE)
+
+tapachula2020 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/Tapachula 2020.csv", header = TRUE)
+
+# Thu May 20 02:08:44 2021 ------------------------------
+
+tuxtla2018 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/Tuxtla 2018.csv", header = TRUE)
+
+tuxtla2019 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/Tuxtla 2019.csv", header = TRUE)
+
+tuxtla2020 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/Tuxtla 2020.csv", header = TRUE)
+
+```
+
+## filtramos
+
+a continuación se filtra por dia y mes respectivamente tomando la lluvia acumulada por dia, tengo en cuanta que se esta filtrando para meses con 30 dias y meses con 31 dias, donde 
+
++ meses con 30 días son : Junio, Septiembre.
+
++ Meses con 31 días:  Julio, Agosto, Octubre.
+
+El procedimiento es el siguiente:
+
+1. Creamos un data frame vacio donde incluimos nuestra nueva columna (cum_rain).
+
+2. Ejecutamos un ciclo para los meses de 30 dias
+
+3. filtramos la base de datos por mes y dia, creamos la nueva variable de lluvia acumulada y seleccionamos el ultimo valor acumulado de la lluvia para ese dia respectivamente.
+
+4. si el numero de filas = 0 (esto debido porque algunos meses no contienen mediciones en días especificos, lo cual nos lleva a no tener lluvia acumulada en ese dia), añadimos una nueva fila con medicion cero para ese dia respectivamente.
+
+5. creamos nuestro data frame
+
+### Arriaga
+
+```{r, eval=FALSE}
+library(tidyverse)
+
+# arriaga 2018 seleccionando el maximo acumulado ------------------------------
+
+n.arriaga2018.30 <- (arriaga2018 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(6, 9)) {
+    for (j in 1:30) {
+          
+        a <- arriaga2018 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Arriaga", j, i, 2018, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.arriaga2018.30 <- rbind(n.arriaga2018.30,a)
+        }
+}
+
+n.arriaga2018.31 <- (arriaga2018 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(7, 8, 10)) {
+    for (j in 1:31) {
+          
+        a <- arriaga2018 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Arriaga", j, i, 2018, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.arriaga2018.31 <- rbind(n.arriaga2018.31,a)
+        }
+}
+
+n_arriaga2018 <- n.arriaga2018.30 %>% 
+  union_all(n.arriaga2018.31)
+
+
+# arriaga 2019 seleccionando el maximo acumulado ------------------------------
+
+n.arriaga2019.30 <- (arriaga2019 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(6, 9)) {
+    for (j in 1:30) {
+          
+        a <- arriaga2019 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Arriaga", j, i, 2019, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.arriaga2019.30 <- rbind(n.arriaga2019.30,a)
+        }
+}
+
+n.arriaga2019.31 <- (arriaga2019 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(7, 8, 10)) {
+    for (j in 1:31) {
+          
+        a <- arriaga2019 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Arriaga", j, i, 2019, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.arriaga2019.31 <- rbind(n.arriaga2019.31,a)
+        }
+}
+
+n_arriaga2019 <- n.arriaga2019.30 %>% 
+  union_all(n.arriaga2019.31)
+
+# arriaga 2020 seleccionando el maximo acumulado ------------------------------
+
+n.arriaga2020.30 <- (arriaga2020 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(6, 9)) {
+    for (j in 1:30) {
+          
+        a <- arriaga2020 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Arriaga", j, i, 2020, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.arriaga2020.30 <- rbind(n.arriaga2020.30,a)
+        }
+}
+
+n.arriaga2020.31 <- (arriaga2020 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(7, 8, 10)) {
+    for (j in 1:31) {
+          
+        a <- arriaga2020 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Arriaga", j, i, 2020, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.arriaga2020.31 <- rbind(n.arriaga2020.31,a)
+        }
+}
+
+n_arriaga2020 <- n.arriaga2020.30 %>% 
+  union_all(n.arriaga2020.31)
+
+
+
+```
+
+### Comitan
+
+```{r, eval=FALSE}
+library(tidyverse)
+
+# comitan 2018 seleccionando el maximo acumulado ------------------------------
+
+n.comitan2018.30 <- (comitan2018 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(6, 9)) {
+    for (j in 1:30) {
+          
+        a <- comitan2018 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Comitan", j, i, 2018, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.comitan2018.30 <- rbind(n.comitan2018.30,a)
+        }
+}
+
+n.comitan2018.31 <- (comitan2018 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(7, 8, 10)) {
+    for (j in 1:31) {
+          
+        a <- comitan2018 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Comitan", j, i, 2018, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.comitan2018.31 <- rbind(n.comitan2018.31,a)
+        }
+}
+
+n_comitan2018 <- n.comitan2018.30 %>% 
+  union_all(n.comitan2018.31)
+
+
+# comitan 2019 seleccionando el maximo acumulado ------------------------------
+
+n.comitan2019.30 <- (comitan2019 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(6, 9)) {
+    for (j in 1:30) {
+          
+        a <- comitan2019 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Comitan", j, i, 2019, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.comitan2019.30 <- rbind(n.comitan2019.30,a)
+        }
+}
+
+n.comitan2019.31 <- (comitan2019 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(7, 8, 10)) {
+    for (j in 1:31) {
+          
+        a <- comitan2019 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Comitan", j, i, 2019, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.comitan2019.31 <- rbind(n.comitan2019.31,a)
+        }
+}
+
+n_comitan2019 <- n.comitan2019.30 %>% 
+  union_all(n.comitan2019.31)
+
+# arriaga 2020 seleccionando el maximo acumulado ------------------------------
+
+n.comitan2020.30 <- (comitan2020 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(6, 9)) {
+    for (j in 1:30) {
+          
+        a <- comitan2020 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Comitan", j, i, 2020, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.comitan2020.30 <- rbind(n.comitan2020.30,a)
+        }
+}
+
+n.comitan2020.31 <- (comitan2020 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(7, 8, 10)) {
+    for (j in 1:31) {
+          
+        a <- comitan2020 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Comitan", j, i, 2020, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.comitan2020.31 <- rbind(n.comitan2020.31,a)
+        }
+}
+
+n_comitan2020 <- n.comitan2020.30 %>% 
+  union_all(n.comitan2020.31)
+
+
+
+```
+
+### San cristobal de las casas
+
+```{r, eval=FALSE}
+library(tidyverse)
+
+# scdlc 2018 seleccionando el maximo acumulado ------------------------------
+
+n.scdlc2018.30 <- (scdlc2018 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(6, 9)) {
+    for (j in 1:30) {
+          
+        a <- scdlc2018 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "scdlc", j, i, 2018, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.scdlc2018.30 <- rbind(n.scdlc2018.30,a)
+        }
+}
+
+n.scdlc2018.31 <- (scdlc2018 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(7, 8, 10)) {
+    for (j in 1:31) {
+          
+        a <- scdlc2018 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "scdlc", j, i, 2018, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.scdlc2018.31 <- rbind(n.scdlc2018.31,a)
+        }
+}
+
+n_scdlc2018 <- n.scdlc2018.30 %>% 
+  union_all(n.scdlc2018.31)
+
+
+# scdlc 2019 seleccionando el maximo acumulado ------------------------------
+
+n.scdlc2019.30 <- (scdlc2019 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(6, 9)) {
+    for (j in 1:30) {
+          
+        a <- scdlc2019 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "scdlc", j, i, 2019, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.scdlc2019.30 <- rbind(n.scdlc2019.30,a)
+        }
+}
+
+n.scdlc2019.31 <- (scdlc2019 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(7, 8, 10)) {
+    for (j in 1:31) {
+          
+        a <- scdlc2019 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "scdlc", j, i, 2019, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.scdlc2019.31 <- rbind(n.scdlc2019.31,a)
+        }
+}
+
+n_scdlc2019 <- n.scdlc2019.30 %>% 
+  union_all(n.scdlc2019.31)
+
+# arriaga 2020 seleccionando el maximo acumulado ------------------------------
+
+n.scdlc2020.30 <- (scdlc2020 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(6, 9)) {
+    for (j in 1:30) {
+          
+        a <- scdlc2020 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "scdlc", j, i, 2020, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.scdlc2020.30 <- rbind(n.scdlc2020.30,a)
+        }
+}
+
+n.scdlc2020.31 <- (scdlc2020 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(7, 8, 10)) {
+    for (j in 1:31) {
+          
+        a <- scdlc2020 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "scdlc", j, i, 2020, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.scdlc2020.31 <- rbind(n.scdlc2020.31,a)
+        }
+}
+
+n_scdlc2020 <- n.scdlc2020.30 %>% 
+  union_all(n.scdlc2020.31)
+
+
+
+```
+
+
+### Tapachula
+
+```{r, eval=FALSE}
+
+# Tapachula 2018 seleccionando el maximo acumulado ------------------------------
+
+n.tapachula2018.30 <- (tapachula2018 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(6, 9)) {
+    for (j in 1:30) {
+          
+        a <- tapachula2018 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Tapachula", j, i, 2018, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.tapachula2018.30 <- rbind(n.tapachula2018.30,a)
+        }
+}
+
+n.tapachula2018.31 <- (tapachula2018 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(7, 8, 10)) {
+    for (j in 1:31) {
+          
+        a <- tapachula2018 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Tapachula", j, i, 2018, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.tapachula2018.31 <- rbind(n.tapachula2018.31,a)
+        }
+}
+
+n_tapachula2018 <- n.tapachula2018.30 %>% 
+  union_all(n.tapachula2018.31)
+
+
+# Tapachula 2019 seleccionando el maximo acumulado ------------------------------
+
+n.tapachula2019.30 <- (tapachula2019 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(6, 9)) {
+    for (j in 1:30) {
+          
+        a <- tapachula2019 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Tapachula", j, i, 2019, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.tapachula2019.30 <- rbind(n.tapachula2019.30,a)
+        }
+}
+
+n.tapachula2019.31 <- (tapachula2019 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(7, 8, 10)) {
+    for (j in 1:31) {
+          
+        a <- tapachula2019 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Tapachula", j, i, 2019, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.tapachula2019.31 <- rbind(n.tapachula2019.31,a)
+        }
+}
+
+n_tapachula2019 <- n.tapachula2019.30 %>% 
+  union_all(n.tapachula2019.31)
+
+# Tapachula 2020 seleccionando el maximo acumulado ------------------------------
+
+n.tapachula2020.30 <- (tapachula2020 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(6, 9)) {
+    for (j in 1:30) {
+          
+        a <- tapachula2020 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Tapachula", j, i, 2020, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.tapachula2020.30 <- rbind(n.tapachula2020.30,a)
+        }
+}
+
+n.tapachula2020.31 <- (tapachula2020 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(7, 8, 10)) {
+    for (j in 1:31) {
+          
+        a <- tapachula2020 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Tapachula", j, i, 2020, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.tapachula2020.31 <- rbind(n.tapachula2020.31,a)
+        }
+}
+
+n_tapachula2020 <- n.tapachula2020.30 %>% 
+  union_all(n.tapachula2020.31)
+
+
+
+```
+
+
+### Tuxtla
+
+```{r, eval=FALSE}
+library(tidyverse)
+
+# Tuxtla 2018 seleccionando el maximo acumulado ------------------------------
+
+n.tuxtla2018.30 <- (tuxtla2018 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(6, 9)) {
+    for (j in 1:30) {
+          
+        a <- tuxtla2018 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Tuxtla", j, i, 2018, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.tuxtla2018.30 <- rbind(n.tuxtla2018.30,a)
+        }
+}
+
+n.tuxtla2018.31 <- (tuxtla2018 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(7, 8, 10)) {
+    for (j in 1:31) {
+          
+        a <- tuxtla2018 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Tuxtla", j, i, 2018, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.tuxtla2018.31 <- rbind(n.tuxtla2018.31,a)
+        }
+}
+
+n_tuxtla2018 <- n.tuxtla2018.30 %>% 
+  union_all(n.tuxtla2018.31)
+
+
+# Tuxtla 2019 seleccionando el maximo acumulado ------------------------------
+
+n.tuxtla2019.30 <- (tuxtla2019 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(6, 9)) {
+    for (j in 1:30) {
+          
+        a <- tuxtla2019 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Tuxtla", j, i, 2019, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.tuxtla2019.30 <- rbind(n.tuxtla2019.30,a)
+        }
+}
+
+n.tuxtla2019.31 <- (tuxtla2019 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(7, 8, 10)) {
+    for (j in 1:31) {
+          
+        a <- tuxtla2019 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Tuxtla", j, i, 2019, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.tuxtla2019.31 <- rbind(n.tuxtla2019.31,a)
+        }
+}
+
+n_tuxtla2019 <- n.tuxtla2019.30 %>% 
+  union_all(n.tuxtla2019.31)
+
+# Tuxtla 2020 seleccionando el maximo acumulado ------------------------------
+
+n.tuxtla2020.30 <- (tuxtla2020 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(6, 9)) {
+    for (j in 1:30) {
+          
+        a <- tuxtla2020 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Tuxtla", j, i, 2020, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.tuxtla2020.30 <- rbind(n.tuxtla2020.30,a)
+        }
+}
+
+n.tuxtla2020.31 <- (tuxtla2020 %>% add_column(cum_rain = NA))[NULL,]
+for (i in c(7, 8, 10)) {
+    for (j in 1:31) {
+          
+        a <- tuxtla2020 %>% 
+              filter(Month == i & Day == j) %>% 
+              mutate(cum_rain = cumsum(Rain)) %>% 
+              slice_tail(n=1)
+        
+          if (nrow(a) == 0) {
+              nd <-data.frame(16.23194,-93.90444, 0, "Tuxtla", j, i, 2020, 0)
+              names(nd)<-names(a)
+              a <- rbind(a, nd)
+          }
+        
+      n.tuxtla2020.31 <- rbind(n.tuxtla2020.31,a)
+        }
+}
+
+n_tuxtla2020 <- n.tuxtla2020.30 %>% 
+  union_all(n.tuxtla2020.31)
+
+```
+
+
+## base general
+
+```{r, eval=FALSE}
+b2018 <- n_arriaga2018 %>% 
+  union_all(n_comitan2018) %>% 
+  union_all(n_scdlc2018) %>% 
+  union_all(n_tapachula2018) %>% 
+  union_all(n_tuxtla2018)
+
+b2019 <- n_arriaga2019 %>% 
+  union_all(n_comitan2019) %>% 
+  union_all(n_scdlc2019) %>% 
+  union_all(n_tapachula2019) %>% 
+  union_all(n_tuxtla2019)
+
+b2020 <- n_arriaga2020 %>% 
+  union_all(n_comitan2020) %>% 
+  union_all(n_scdlc2020) %>% 
+  union_all(n_tapachula2020) %>% 
+  union_all(n_tuxtla2020)
+
+
+b2018 %>% 
+  union_all(b2019) %>% 
+  union_all(b2020) -> bg
+
+```
+
+```{r}
+library(tidyverse)
+b2018 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/nd/b2018.csv", header = TRUE)
+
+b2019 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/nd/b2019.csv", header = TRUE)
+
+b2020 <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/nd/b2020.csv", header = TRUE)
+
+bg <- read.csv("C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/datos/base/Chiapas 5/summer/data/nd/bg.csv", header = TRUE)
+
+
+# b2018 <- b2018 %>% select(-Rain)
+# b2019 <- b2019 %>% select(-Rain)
+# b2020 <- b2020 %>% select(-Rain)
+# bg <- bg %>% select(-Rain)
+```
+
+
+# EDA fast
+
+observemos un poco nuestras bases de datos, algunas estadisticas descriptivas
+
+```{r, cache=TRUE}
+library(elucidate)
+library(patchwork)
+
+
+b2018 %>% 
+  glimpse() %>% 
+  describe(y = Rain)
+b2018 %>% 
+  plot_density(x = Rain,
+               title = "2018 basic density plot of Rain",
+               fill = "lightseagreen") -> p1;p1
+
+b2019 %>% 
+  glimpse() %>% 
+  describe(y = Rain)
+b2019 %>% 
+  plot_density(x = Rain,
+               title = "2019 basic density plot of Rain",
+               fill = "lightskyblue") -> p2;p2
+
+b2020 %>% 
+  glimpse() %>% 
+  describe(y = Rain)
+b2020 %>% 
+  plot_density(x = Rain,
+               title = "2020 basic density plot of Rain",
+               fill = "olivedrab3") -> p3;p3
+
+
+bg %>% 
+  glimpse() %>% 
+  describe(y = Rain)
+bg %>% 
+  plot_density(x = Rain,
+               title = "(2018-2020) basic density plot general of Rain",
+               fill = "salmon1") -> p4;p4
+
+(p1 + p2)/(p3 + p4)
+
+```
+
+
+```{r}
+b2018 %>% 
+  ggplot(aes(x = Day, y = Rain, color=factor(Month))) +
+  # geom_point() +
+  facet_wrap(~Station, scales="free") +
+  theme_bw() +
+  theme_minimal() +
+  geom_line() + 
+  ggtitle("Maximos para el 2018")
+
+b2019 %>% 
+  ggplot(aes(x = Day, y = Rain, color=factor(Month))) +
+  # geom_point() +
+  facet_wrap(~Station, scales="free") +
+  theme_bw() +
+  theme_minimal() +
+  geom_line() + 
+  ggtitle("Maximos para el 2019")
+
+b2020 %>% 
+  ggplot(aes(x = Day, y = Rain, color=factor(Month))) +
+  # geom_point() +
+  facet_wrap(~Station, scales="free") +
+  theme_bw() +
+  theme_minimal() +
+  geom_line() + 
+  ggtitle("Maximos para el 2020")
+
+bg %>% 
+  ggplot(aes(x = Day, y = Rain, color=factor(Month))) +
+  # geom_point() +
+  facet_wrap(~Station + year, scales="free") +
+  theme_bw() +
+  theme_minimal() +
+  geom_line() + 
+  ggtitle("Maximos para el 2018-2020")
+```
+
+# grafica de los datos
+
+Ahora creemos 3 graficos para cada año correspondiente de nuestro conjunto de datos, cargemos algunas librerias necesarias
+
+La siguiente forma de mapear nuestro conjunto de datos obtenido, es de la siguiente forma, considere que esta forma no involucra leer un shape file, convertir los datos a tipo geodata y todas esas particularidades, eso es lo interesante y practico, aunque no descartamos hacerlo de la forma correspondiente.
+
+Algo particular es que si necesitamos el shape file, solo para colocar el contorno del estado de chiapas, es por ello que debemos de leerlo.
+
+cargamos algunas librerias
+
+
+```{r}
+library(rgdal)
+library(dplyr)
+library(ggplot2)
+library(leaflet)      # libreria para graficar mapas interactivos
+library(sf)           # manejo de informacion geografica 
+library(viridis)      # paletas de colores
+library(RColorBrewer) # mas paletas de colores
+library(patchwork)
+```
+
+
+a continuación leemos nuestro archivo shapefile, algo que debemos identificar del shapefile es que su proyeccion geografica no coincide con la proyeccion geografica del conjunto de daos a trabajar, es por ello que se necesita realizar una transformación en la proyección de nuestro shapefile, para llevarlo a la proyección habitual de longitud y latitud que se conoce.
+
+
+```{r, cache=TRUE}
+my_spdf <- readOGR( 
+  dsn= "C:/Users/David/OneDrive/Documentos/MMA/seminario de tesis 2/avances seminario/A2", 
+  layer="ENTIDAD",
+  verbose=FALSE
+)
+
+# trasformamos a el sistema de coordenadas habitual
+
+my_spdf <- spTransform(my_spdf, CRS("+proj=longlat +datum=WGS84"))
+```
+
+y seleccionamos el estado de chiapas
+
+```{r}
+my_spdf_c <- my_spdf[my_spdf$nombre == "CHIAPAS",]
+```
+
+podemos observar mediante un grafico que el estado seleccionado sea el correcto.
+
+```{r}
+plot(my_spdf_c, col="#f2f2f2", bg="skyblue", lwd=0.25)
+```
+
+Ahora si estamos listos para realizar un grafico de nuestro conjunto de datos
+
+```{r, cache=TRUE, eval=FALSE}
+b2018 %>% 
+  ggplot() +
+  geom_point(aes(x = Longitud, y = Latitud, colour = Rain),size =3)+
+  borders(my_spdf_c)+
+  coord_quickmap()+
+  theme_test()
+```
+
+Agregando un poco mas de detalle podemos obtener un grafico mas detallado para cada año y general
+
+```{r, cache=TRUE, eval=FALSE}
+library(ggrepel)
+
+b2018 %>% 
+  ggplot(aes(x = Longitud, y = Latitud)) +
+  borders(my_spdf_c, fill = "antiquewhite1") +
+  geom_point(aes(colour = Rain), size = 4) +
+  scale_color_viridis_c(option = "plasma", trans = "sqrt",
+                        oob = scales::squish) +
+  coord_quickmap() +
+  theme_test()  +
+  xlab("Longitude") + ylab("Latitude") +
+  ggtitle("Chiapas 2018", subtitle = "Precipitación media por hora") +
+  theme(panel.grid.major = element_line(color = gray(0.5), linetype = "dashed", 
+        size = 0.5), panel.background = element_rect(fill = "aliceblue")) +
+  geom_text_repel(data = distinct(b2018, Longitud, .keep_all = TRUE), 
+                  aes(x = Longitud, y = Latitud, label = Station),
+                  box.padding   = 1, point.padding = 1, segment.color = 'grey50',
+                  size = 4, point.size = 4, segment.size = 1) -> p5;p5
+
+# unique(b2018$Station)
+# distinct(b2018, Longitud, .keep_all = T)
+# table(b2018$Latitud)
+b2019 %>% 
+  ggplot() +
+  borders(my_spdf_c, fill = "antiquewhite1") +
+  geom_point(aes(x = Longitud, y = Latitud, color = Rain, label=Station), size =4) +
+  geom_text_repel(data = distinct(b2019, Station, .keep_all = TRUE), 
+                  aes(x = Longitud, y = Latitud, label = Station),
+                  box.padding   = 1, point.padding = 1, segment.color = 'grey50',
+                  fontface = "bold", size = 4, point.size = 4, segment.size = 1)+
+  coord_quickmap() +
+  theme_test()  +
+  scale_color_viridis_c(option = "plasma", trans = "sqrt") +
+  xlab("Longitude") + ylab("Latitude") +
+  ggtitle("Chiapas 2019", subtitle = "Precipitación media por hora") +
+  theme(panel.grid.major = element_line(color = gray(0.5), linetype = "dashed", size = 0.5), 
+        panel.background = element_rect(fill = "aliceblue")) -> p6;p6
+
+
+b2020 %>% 
+ggplot() +
+  borders(my_spdf_c, fill = "antiquewhite1") +
+  geom_point(aes(x = Longitud, y = Latitud, color = Rain, label = Station), size =4) +
+  geom_text_repel(data = distinct(b2020, Station, .keep_all = TRUE), 
+                  aes(x = Longitud, y = Latitud, label = Station),
+                  box.padding   = 1, point.padding = 1, segment.color = 'grey50',
+                  fontface = "bold", size = 4, point.size = 4, segment.size = 1)+  
+  coord_quickmap() +
+  theme_test()  +
+  scale_color_viridis_c(option = "plasma", trans = "sqrt") +
+  xlab("Longitude") + ylab("Latitude") +
+  ggtitle("Chiapas 2020", subtitle = "Precipitación media por hora") +
+  theme(panel.grid.major = element_line(color = gray(0.5), linetype = "dashed", 
+        size = 0.5), panel.background = element_rect(fill = "aliceblue")) -> p7;p7
+
+bg %>% 
+ggplot() +
+  borders(my_spdf_c, fill = "antiquewhite1") +
+  geom_point(aes(x = Longitud, y = Latitud, color = Rain, label=Station), size =4) +
+  geom_text_repel(data = distinct(b2020, Station, .keep_all = TRUE), 
+                  aes(x = Longitud, y = Latitud, label = Station),
+                  box.padding   = 1, point.padding = 1, segment.color = 'grey50',
+                  fontface = "bold", size = 4, point.size = 4, segment.size = 1)+    
+  coord_quickmap() +
+  theme_test()  +
+  scale_color_viridis_c(option = "plasma", trans = "sqrt") +
+  xlab("Longitude") + ylab("Latitude") +
+  ggtitle("Chiapas 2018-2020", subtitle = "Precipitación media por hora") +
+  theme(panel.grid.major = element_line(color = gray(0.5), linetype = "dashed", 
+        size = 0.5), panel.background = element_rect(fill = "aliceblue")) -> p8;p8
+
+(p5 + p6)/(p7 + p8)
+
+```
+
+
+# prueba estadistica formal para verificar si mis datos son de GEV
+
+Algo importante es determinar si mi conjunto de datos sigue una GEVD, esto se realiza de la siguiente forma.
+
+¿Que realiza este paquete?
+
+Calcula el estadístico de prueba y el valor p de la prueba de Cramer-von Mises y Anderson Darling para algunas funciones de distribución continua propuestas por Chen y Balakrishnan (1995) [http://asq.org/qic/display-item/index.html?item= 11407]. Además de nuestras funciones de distribución clásicas aquí, calculamos la prueba de bondad de ajuste (GoF) para el conjunto de datos que sigue la función de distribución de valor extremo, sin recordar la fórmula de las funciones de distribución/densidad. Calcula el valor en riesgo (VaR) y el VaR promedio son otros factores de riesgo importantes que se estiman mediante el uso de funciones de distribución bien conocidas. Pflug y Romisch (2007, ISBN: 9812707409) es una buena referencia para estudiar las propiedades de las medidas de riesgo.
+
+```{r, echo=FALSE}
+"gen.gev" <-
+function(p, n, trend=NULL) {
+
+# simulates gev data using an exponential
+# p is c(mu, sigma, gamma)
+# routine by GY
+
+if( p[3] != 0) {
+# Generate from a GEV distribution (Frechet or Weibull)
+#	x <- rexp(n)
+#	if( is.null(trend)) gev.dat <- p[1] + p[2]*(x^(-p[3])-1)/p[3]
+	if( is.null(trend))
+		gev.dat <- p[1] + p[2]*((-log(runif(n)))^(-p[3])-1)/p[3]
+	else {
+
+    # generate gev with a linear trend in mu
+    gev.dat<-numeric(n)
+# for( i in 1:n) gev.dat[i] <- p[1]+i*trend+p[2]*(x[i]^(-p[3])-1)/p[3]
+for( i in 1:n)
+	gev.dat[i] <- p[1]+i*trend+p[2]*((-log(runif(n)[i]))^(-p[3])-1)/p[3]
+		}
+} else {
+	# Generate from a Gumbel distribution
+	if( is.null( trend)) gev.dat <- p[1] - p[2]*log( -log( runif(n)))
+	else {
+		gev.dat <- numeric(n)
+for( i in 1:n) gev.dat[i] <- p[1] + i*trend - p[2]*log( -log( runif(n)[i]))
+		}
+	} # end of if else p is not 0 stmt
+return( gev.dat)
+} # end of gen.gev fcn
+
+hist.gev.fit <- function(x, breaks.method="Sturges",...)
+{
+a <- x$mle
+dat <- x$data
+#
+# Plots histogram of data and fitted density
+# for output of gev.fit stored in z
+#
+        h <- hist(dat, freq = FALSE, breaks=breaks.method, plot = FALSE,...)
+        if(a[3] < 0) {
+                x1 <- seq(min(h$breaks), min(max(h$breaks), (a[1] - a[2]/a[3] -
+                        0.001)), length = 100)
+        }
+        else {
+                x1 <- seq(max(min(h$breaks), (a[1] - a[2]/a[3] + 0.001)), max(h$
+                        breaks), length = 100)
+        }
+        y <- gev.dens(a, x1)
+        hist(dat, freq = FALSE, breaks=breaks.method, ylim = c(0, max(y)), xlab = "z", ylab = "f(z)",
+                main = "Density Plot",...)
+        points(dat, rep(0, length(dat)))
+        lines(x1, y)
+invisible(h)
+} 
+```
+
+```{r}
+library(gnFit)
+library(fExtremes)
+library(extRemes)
+library(ismev)
+```
+
+Para probar H0: X1,. . . , Xn es una muestra aleatoria de una distribución continua con función de distribución acumulativa F (x; θ), donde se conoce la forma de F pero se desconoce θ. Primero estimamos θ por $θ^∗$ (por ejemplo, método de estimación de máxima verosimilitud). A continuación, calculamos vi = F (xi, θ∗), donde los xi están en orden ascendente.
+
+
+## con mis datos
+
+seleccionemos los valores mayores a 29 de la precipitación por hora esto con respecto a información que se menciono al comienzo.
+
+
+```{r}
+nd <- bg %>% 
+  dplyr::select(Rain) %>% 
+  dplyr::filter(Rain > 30)
+
+# nd_m = gevSim(model = list(xi = 0.25, mu = 0 , beta = 1), n = 1000)
+# fit1  = gevFit(x1, type = "mle") 
+nd_m <- gev.fit(as.vector(as.numeric(as.matrix(nd))))
+
+gev.diag(nd_m)
+```
+
+
+```{r, message=TRUE}
+# fit1@fit[c(6, 7, 3, 4)]
+gnfit(as.numeric(as.matrix(nd)), "gev", pr = nd_m$mle)
+
+nd_m1 <- gevFit(nd, type = "mle")
+print(nd_m1)
+   
+## summary -
+   # Summarize Results:
+   par(mfcol = c(2, 2))
+   summary(nd_m1)
+
+
+```
+
+
+
+
+
+
+# ajuste de Davison, A.C., Padoan, S.A. and Ribatet
+
+La siguiente metodologia es conforme al ajuste de Davison, A.C., Padoan, S.A. and Ribatet.
+
+
+La función para incorporar el componente temporal y spatial a una DVEG es la función `latent` de la libreria `SpatialExtremes`, la cual indica lo siguiente:
+
+`latent`: Modelos jerárquicos bayesianos para extremos espaciales
+
+**Descripción**
+
+Esta función genera una cadena de Markov a partir de un modelo jerárquico bayesiano para bloques máximos asumiendo independencia condicional.
+
+**Uso**
+
+```{r, eval=FALSE, class.source = 'fold-show'}
+latent(data, coord, cov.mod = "powexp", loc.form, scale.form,
+shape.form, marg.cov = NULL, hyper, prop, start, n = 5000, thin = 1,
+burn.in = 0, use.log.link = FALSE)
+```
+
+**Argumentos**
+
+`data`: Una matriz que representa los datos. Cada columna corresponde a una ubicación.
+
+`coord:` Una matriz que da las coordenadas de cada ubicación. Cada fila corresponde a una ubicación.
+
+`cov.model:` Cadena de caracteres correspondiente al modelo de covarianza de los procesos latentes gaussianos. Debe ser uno de "gauss" para el modelo de Smith; "whitmat", "cauchy", "powexp" o "bessel" o para las familias de correlación Whittle-Matern, Cauchy, Powered Exponential y Bessel.
+
+`loc.form, scale.form, shape.form`: Fórmulas R que definen los modelos espaciales para los parámetros GEV. Consulte la sección Detalles.
+
+`mar.cov:` Matriz con columnas nombradas que dan covariables adicionales para las medias de los procesos latentes. Si es NULL, no se utilizan covariables adicionales.
+
+`hyper:` Una lista con nombre que especifica los hiperparámetros
+
+`covariables`: Matriz con columnas nombradas que dan las covariables requeridas para los modelos de parámetros de GEV.
+
+`prop:`Una lista con nombre que especifica los tamaños de salto cuando se necesita un movimiento de Metropolis-Hastings
+
+`start`: Una lista con nombre que proporciona los valores iniciales
+
+`n:` La longitud efectiva de la cadena de Markov simulada, es decir, una vez descartado el período de quemado y después del adelgazamiento.
+
+`thin:` Un número entero que especifica la longitud de adelgazamiento. El valor predeterminado es 1, es decir, sin adelgazamiento
+
+`burn.in:` Un número entero que especifica el período de quemado. El valor predeterminado es 0, es decir, sin quemado
+
+`use.log.link:` Un entero. ¿Debería utilizarse una función de liga logarítmico para los parámetros de la escala GEV, es decir, suponiendo que los parámetros de la escala GEV se extraen de un proceso logarítmico normal en lugar de un proceso gaussiano?
+
+
+
+**Detalles**
+
+Esta función genera una cadena de Markov a partir del siguiente modelo. Para cada $x \in R_d$, suponga que $Y (x)$ es GEV distribuido cuyos parámetros $\{µ (x); σ(x); ξ (x)\}$ varían suavemente para $x \in R^d$ de acuerdo con un proceso estocástico $S (x)$. Suponemos que los procesos para cada parámetro de GEV son procesos gaussianos mutuamente independientes. Por ejemplo, tomamos como parámetro de ubicación $µ (x)$
+
+$$
+\mu(x)=f_{\mu(x)}\left(x ; \beta_{\mu}\right)+S_{\mu}\left(x ; \alpha_{\mu}, \lambda_{\mu}, \kappa_{\mu}\right)
+$$
+
+donde $f_µ$ es una función determinista que depende de los parámetros de regresión $β_µ$, y $S_µ$ es un proceso gaussiano estacionario de media cero con una función de covarianza prescrita con umbral $α_µ$, rango $λ_µ$ y parámetros de forma $κ_µ$. Se utilizan formulaciones similares para los parámetros de escala $σ (x)$ y forma $ξ (x)$. Luego, condicionado a los valores de los tres procesos gaussianos en los sitios $(x_1,..., x_K)$, se supone que los máximos siguen distribuciones GEV
+
+$$
+Y_{i}\left(x_{j}\right) \mid\left\{\mu\left(x_{j}\right), \sigma\left(x_{j}\right), \xi\left(x_{j}\right)\right\} \sim \operatorname{GEV}\left\{\mu\left(x_{j}\right), \sigma\left(x_{j}\right), \xi\left(x_{j}\right)\right\},
+$$
+
+independientemente para cada ubicación $(x_1,..., x_K)$.
+
+Se debe definir una densidad a priori conjunta para los umbrales, rangos y parámetros de formas de las funciones de covarianza, así como para los parámetros de regresión $β_µ$, $β_σ$ y $β_ξ$. Siempre que sea posible, se utilizan a priori conjugados, tomando distribuciones Gamma inversa independiente y normal multivariante para los umbrales y los parámetros de regresión. No existe un conjugado a priori para $λ$ y $κ$, por lo que se supone una distribución Gamma.
+
+En consecuencia, `hyper` es una lista con nombre con componentes con nombre.
+
+
++ umbrales(sills): Una lista con tres componentes denominados "loc", "escala" y "forma", cada uno de ellos es un vector de 2 longitudes que especifica la forma y la escala de la distribución a priori Gamma inversa para el parámetro umbral de las funciones de covarianza;
+
++ rangos(ranges): Una lista con tres componentes denominados "loc", "escala" y "forma", cada uno de ellos es un vector de 2 longitudes que especifica la forma y la escala de la distribución a priori Gamma para el parámetro de rango de las funciones de covarianza.
+
++ suaviza(smooths): Una lista con tres componentes denominados "loc", "escala" y "forma", cada uno de ellos es un vector de 2 longitudes que especifica la forma y la escala de la distribución previa Gamma para el parámetro de forma de las funciones de covarianza;
+
++ betaMean: Una lista con tres componentes denominados "loc", "escala" y "forma", cada uno de ellos es un vector que especifica el vector medio de la distribución previa normal multivariante para los parámetros de regresión;
+
++ betaIcov: Una lista con tres componentes denominados "loc", "escala" y "forma", cada uno de ellos, es una matriz que especifica la inversa de la matriz de covarianza de la distribución previa normal multivariante para los parámetros de regresión.
+
+Como no existe una a priori conjugado para los parámetros de GEV y los parámetros de rango y forma de las funciones de covarianza, se necesitan los pasos de Metropolis-Hastings. Las propuestas $θ_{prop}$ se extraen de una densidad de propuesta  $q(· | θ_{cur}, s)$ donde $θ_{cur}$ es el estado actual del parámetro y s es un parámetro de la densidad de propuesta a definir. Estas propuestas están impulsadas por prop, que es una lista con tres componentes nombrados
+
++ gev: Un vector de longitud 3 que especifica las desviaciones estándar de las distribuciones propuestas. Estos se toman como una distribución normal para los parámetros de GEV de ubicación y forma y una distribución logarítmica normal para los parámetros de GEV de escala;
+
++ rangos(ranges): Un vector de longitud 3 que especifica los tamaños de salto para los parámetros de rango de las funciones de covarianza - $q (· | θ_{cur}, s)$ es la densidad logarítmica normal con media $θ_{cur}$  y desviación estándar s ambas en la escala logarítmica;
+
++ suaviza(smooth) Un vector de longitud 3 que especifica los tamaños de salto para los parámetros de forma de las funciones de covarianza - $q (· | θ_{cur}, s)$ es la densidad logarítmica normal con media $θ_{cur}$ y desviación estándar s ambas en la escala logarítmica.
+
+Si uno quiere mantener fijo un parámetro, esto se puede hacer estableciendo un tamaño de salto nulo, entonces el parámetro se mantendrá fijo en su valor inicial.
+
+Finalmente, el `star` debe ser una lista con nombre con 4 componentes con nombre
+
++ umbrales(sill) Un vector de longitud 3 que especifica los valores iniciales para el umbral de las funciones de covarianza;
+
++ rangos(ranges) Un vector de longitud 3 que especifica los valores iniciales para el rango de las funciones de covarianza;
+
++ suaviza(smooth) Un vector de longitud 3 que especifica los valores iniciales para la forma de las funciones de covarianza;
+
++ beta Una lista con nombre con 3 componentes "loc", "escala" y "forma", cada uno de ellos es un vector numérico que especifica los valores iniciales para los coeficientes de regresión.
+
+
+Valor
+Una lista
+
+Advertencia
+Esta función puede llevar mucho tiempo y hace un uso intensivo de las rutinas BLAS, por lo que es (¡mucho!) Más rápida si tiene un BLAS optimizado. Los valores iniciales nunca se almacenarán en la cadena de Markov generada incluso cuando `burn.in = 0.`
+
+## Modelo
+
+Recordando que 
+
+$$
+Y_{i}\left(x_{j}\right) \mid\left\{\mu\left(x_{j}\right), \sigma\left(x_{j}\right), \xi\left(x_{j}\right)\right\} \sim \operatorname{GEV}\left\{\mu\left(x_{j}\right), \sigma\left(x_{j}\right), \xi\left(x_{j}\right)\right\},
+$$
+
+independientemente para cada ubicación $(x_1,..., x_K)$.
+
+donde 
+
+$$
+\mu(x)=f_{\mu(x)}\left(x ; \beta_{\mu}\right)+S_{\mu}\left(x ; \alpha_{\mu}, \lambda_{\mu}, \kappa_{\mu}\right)
+$$
+
+$$
+\sigma(x)=f_{\sigma(x)}\left(x ; \beta_{\sigma}\right)+S_{\sigma}\left(x ; \alpha_{\sigma}, \lambda_{\sigma}, \kappa_{\mu}\right)
+$$
+
+$$
+\xi(x)=f_{\xi(x)}\left(x ; \beta_{\xi}\right)+S_{\xi}\left(x ; \alpha_{\xi}, \lambda_{\xi}, \kappa_{\xi}\right)
+$$
+
+Ahora concentrandonos en $\mu(x)$, note que 
+
+$$
+\mu(x)=f_{\mu(x)}\left(x ; \beta_{\mu}\right)+S_{\mu}\left(x ; \alpha_{\mu}, \lambda_{\mu}, \kappa_{\mu}\right)
+$$
+
+conforme a 
+
+**Banerjee, S., Carlin, B. P., and Gelfand, A. E. (2004). Hierarchical Modeling and Analysis for Spatial Data. Chapman & Hall/CRC, New York.**
+
+**Casson, E. and Coles, S. (1999) Spatial regression models for extremes. Extremes 1,449–468.**
+
+**Cooley, D., Nychka, D. and Naveau, P. (2007) Bayesian spatial modelling of extreme precipitation**
+
+**return levels Journal of the American Statistical Association 102:479, 824–840.**
+
+**Davison, A.C., Padoan, S.A. and Ribatet, M. Statistical Modelling of Spatial Extremes. Submitted.**
+
+suguieren que los parámetros de umbral, rango y forma.
+
+$$
+\alpha, \lambda, \kappa \sim p(\alpha, \lambda, \kappa) 
+$$
+
+en particular el umbral
+
+$$
+\alpha \sim IG(a_1, b_1) 
+$$
+el rango
+
+$$
+\lambda, \kappa \sim G(a_{2,3}, b_{2,3}) 
+$$
+ademas
+
+$$
+\beta \sim N(\boldsymbol{\mu},\boldsymbol{\Sigma})
+$$
+## Aplicación
+
+Ilustramos la discusión anterior usando los datos de precipitación máxima anual descritos. Por lo que ajustamos la distribución de valores extremos generalizados, utilizando parámetros descritos por las superficies de tendencia
+
+$$
+\begin{array}{l}
+\eta(x)=\beta_{0, \eta}+\beta_{1, \eta} \operatorname{lon}(x)+\beta_{2, \eta} \operatorname{lat}(x), \\
+\tau(x)=\beta_{0, \tau}+\beta_{1, \tau} \operatorname{lon}(x)+\beta_{2, \tau} \operatorname{lat}(x), \\
+\xi(x)=\beta_{0, \xi}
+\end{array}
+$$
+donde lon (x) y lat (x) son la longitud y latitud de las estaciones en las que se observan los datos. La estructura marginal de las ecuaciones anteriores se eligió utilizando el CLIC y los valores de verosimilitud obtenidos al ajustar una amplia gama de modelos plausibles. 
+
+Recuerde que el CLIC es:
+
+(La selección del modelo se efectúa minimizando el criterio de información de verosimilitud compuesta, que tiene propiedades análogas a las de AIC y TIC)
+
+$$
+CLIC = -2 \ell_{p}(\hat{\vartheta})+2 \operatorname{tr}\left\{J^{-1}(\hat{\vartheta}) K(\hat{\vartheta})\right\}
+$$
+
+
+## code
+
+```{r, cache=TRUE}
+bg <- bg %>% 
+  dplyr::filter(Rain > 30)
+
+bg %>% 
+  plot_density(x = Rain,
+               title = "(2018-2020) basic density plot general of cum_rain",
+               fill = "salmon1")
+
+table(bg$Station)
+library(SpatialExtremes)
+## Not run:
+## Generate realizations from the model
+n.site <- 4 # numero de sitios muestreados
+
+n.obs  <- 11 # numero de observaciones tomada en cada sitio muestreado
+
+coord  <- bg %>%                    # creamos la matrix de coordenadas
+  select(Longitud, Latitud) %>%       # esta matrix de coordenadas solo incluye el
+  unique()                            # numero de sitios donde se muestreo
+
+coord  <- cbind(lon = coord$Longitud, lat = coord$Latitud) # matrix de coordenadas
+# sin mediciones repetidas
+# class(coord)
+# coord <- cbind(lon = runif(n.site, -10, 10), lat = runif(n.site, -10 , 10))
+
+# creamos un proceso gaussiano para cada parametro  de la GEV, esta parte se deja
+# a elección del autor elegirlo.
+
+gp.loc   <- SpatialExtremes::rgp(1, coord, "powexp", sill = 0.01, range = 10, smooth = 1)
+gp.scale <- SpatialExtremes::rgp(1, coord, "powexp", sill = 0.001, range = 15, smooth = 1)
+gp.shape <- SpatialExtremes::rgp(1, coord, "powexp", sill = 0.001, range = 20, smooth = 1)
+
+
+# locs   <- 26 + 0.5 * coord[,"lon"] + gp.loc
+# scales <- 10 + 0.2 * coord[,"lat"] + gp.scale
+# shapes <- 0.15 + gp.shape
+
+
+# Estimated Parameters:
+#         xi         mu       beta 
+#  0.3944641 34.1387472  4.7882714 
+
+data <- matrix(NA, n.obs, n.site)
+# 
+# for (i in 1:n.site)
+#   data[,i] <- SpatialExtremes::rgev(n.obs, locs[i], scales[i], shapes[i])
+dim(bg)
+table(bg$Station)
+
+data[,1]  <-bg %>% 
+  dplyr::select(Rain, Station) %>% 
+  dplyr::filter(Station == "Arriaga") %>% 
+  # slice(1:5) %>% 
+  dplyr::select(Rain) %>% 
+  dplyr::arrange(-Rain) %>% 
+  slice(1:11) %>% 
+  as.matrix()
+data[,2]  <-bg %>% 
+  dplyr::select(Rain, Station) %>% 
+  dplyr::filter(Station == "Comitan") %>% 
+  # slice(1:5) %>% 
+  select(Rain) %>% 
+  arrange(-Rain) %>% slice(1:11) %>% 
+  as.matrix()
+# data[,3]  <- bg %>% 
+#   dplyr::select(cum_rain, Station) %>% 
+#   dplyr::filter(Station == "scdlc") %>% 
+#   # slice(1:5) %>% 
+#   select(cum_rain) %>% 
+#   arrange(-cum_rain) %>% # slice(1:61) %>% 
+#   as.matrix()
+data[,3]  <- bg %>% 
+  dplyr::select(Rain, Station) %>% 
+  dplyr::filter(Station == "Tapachula") %>% 
+  # slice(1:5) %>% 
+  select(Rain) %>% 
+  arrange(-Rain) %>% slice(1:11) %>% 
+  as.matrix()
+data[,4]  <- bg %>% 
+  dplyr::select(Rain, Station) %>% 
+  dplyr::filter(Station == "Tuxtla") %>% 
+  # slice(1:5) %>% 
+  select(Rain) %>% 
+  arrange(-Rain) %>%  slice(1:11) %>% 
+  as.matrix()
+
+# b2018[b2018$Station == "Arriaga", 3]
+# data[,5] <- b2018[b2018$Station == "tuxtlag", 3]
+# data[,1]  <- b2018[1:10,3]
+
+# loc.form   <- y ~ lon
+# scale.form <- y ~ lat
+# shape.form <- y ~ 1
+
+loc.form   <- y ~ 1
+scale.form <- y ~ 1
+shape.form <- y ~ 1
+
+hyper <- list()
+hyper$sills     <- list(loc = c(1,8), 
+                        scale = c(1,1), 
+                        shape = c(1,0.02))
+hyper$ranges    <- list(loc = c(2,20), 
+                        scale = c(1,5), 
+                        shape = c(1, 10))
+hyper$smooths   <- list(loc = c(1,1/3), 
+                        scale = c(1,1/3), 
+                        shape = c(1, 1/3))
+hyper$betaMeans <- list(loc = 9, 
+                        scale = 6, 
+                        shape = 2)
+hyper$betaIcov  <- list(loc =   solve(diag(c(10), 1, 1)),
+                        scale = solve(diag(c(10), 1, 1)),
+                        shape = solve(diag(c(0.13), 1, 1)))
+## We will use an exponential covariance function so the jump sizes for
+## the shape parameter of the covariance function are null.
+
+prop <- list(gev = c(1.2, 0.08, 0.08), ranges = c(0.7, 0.8, 0.7), smooths = c(0,0,0))
+
+start <- list(sills = c(4, .36, 0.009), 
+              ranges = c(24, 17, 16), 
+              smooths= c(1, 1, 1), 
+              beta = list(loc = c(24), 
+                          scale = c(7.31),
+                          shape = c(0.54)))
+
+# Estimated Parameters:
+#   xi         mu       beta 
+# 0.5304988 37.3221090  7.4043417 
+
+mc1 <- latent(data, coord, 
+             loc.form = loc.form, 
+             scale.form = scale.form,
+             shape.form = shape.form, 
+             hyper = hyper, 
+             prop = prop, 
+             start = start,
+             n = 10000, 
+             burn.in = 5000, 
+             thin = 15)
+mc1
+
+mc2 <- latent(data, coord, 
+             loc.form = loc.form, 
+             scale.form = scale.form,
+             shape.form = shape.form, 
+             hyper = hyper, 
+             prop = prop, 
+             start = start,
+             n = 10000, 
+             burn.in = 5000, 
+             thin = 15)
+mc2
+
+mc3 <- latent(data, coord, 
+             loc.form = loc.form, 
+             scale.form = scale.form,
+             shape.form = shape.form, 
+             hyper = hyper, 
+             prop = prop, 
+             start = start,
+             n = 10000, 
+             burn.in = 5000, 
+             thin = 15)
+mc3
+## End(Not run)
+
+# a <- summary(mc)
+# 
+# a
+# head(mc$chain.loc)
+# head(mc$chain.scale)
+# head(mc$chain.shape)
+# head(mc$loc.dsgn.mat)
+# head(mc$scale.dsgn.mat)
+# head(mc$shape.dsgn.mat)
+
+# tidybayes::add_residual_draws(mc$chain.loc[,6:10])
+
+# mod1_sim <- coda::coda.samples(model = mc, 
+#                          variable.names = chain.loc,
+                         # n.iter = 5000)
+```
+
+dsgn.mat The design matrix.
+
+sill = umbral
+
+ranges = rango
+
+smooths = forma
+
+
+### diagnosticos
+
+Un vector de longitud 3 que devuelve el DIC, el número efectivo de parámetros eNoP y una estimación de la desviación esperada Dbar.
+
+```{r}
+library(broom)
+library(coda)
+library(broom.mixed)
+library(brms)
+library(bayesplot)
+```
+
+### parametro de localización
+
+```{r}
+mc1$chain.loc <- as.data.frame(mc1$chain.loc) %>% 
+  mutate(chain = 1)
+mc2$chain.loc <- as.data.frame(mc2$chain.loc) %>% 
+  mutate(chain = 2)
+mc3$chain.loc <- as.data.frame(mc3$chain.loc) %>% 
+  mutate(chain = 3)
+
+mc.loc <-  mc1$chain.loc %>% 
+  union_all(mc2$chain.loc) %>% union_all(mc3$chain.loc)
+
+post <- posterior_samples(mc.loc, add_chain = T)
+mcmc_dens_overlay(post)
+
+
+post %>% 
+  select(lm1, sill, range, loc1, loc2, loc3, loc4) %>% 
+  mcmc_acf()
+
+post %>% 
+  select(lm1, sill, range, loc1, loc2, loc3, loc4) %>% 
+  mcmc_trace()
+
+post %>% 
+  select(lm1, sill, range, loc1, loc2, loc3, loc4) %>% 
+  mcmc_dens()
+
+
+post %>% select(lm1) %>% mcmc_trace()
+
+
+library(coda)
+
+coda::raftery.diag(posterior_samples(post))
+
+# coda::gelman.diag(mcmc.list(as.mcmc(mc1$chain.loc[,c(-4,-9)]), 
+#                             as.mcmc(mc2$chain.loc[,c(-4,-9)]), 
+#                             as.mcmc(mc3$chain.loc[,c(-4,-9)])))
+# 
+# coda::gelman.diag(mcmc.list(as.mcmc(mc1$chain.loc[,1]), 
+#                             as.mcmc(mc2$chain.loc[,1]), 
+#                             as.mcmc(mc3$chain.loc[,1])))
+
+BMu1.mcmc<-mcmc.list(as.mcmc(mc1$chain.loc[,c(-4,-9)]), 
+                     as.mcmc(mc2$chain.loc[,c(-4,-9)]),
+                     as.mcmc(mc3$chain.loc[,c(-4,-9)]))
+
+summary(BMu1.mcmc)
+xyplot(BMu1.mcmc)
+densityplot(BMu1.mcmc)                             #Densidades
+plot(BMu1.mcmc)
+# layout(matrix(1:12, 3,4));  
+
+traceplot(BMu1.mcmc)
+
+#Grafica de autocorrelacion
+autocorr.plot(BMu1.mcmc, auto.layout = TRUE, ask =F)
+coda::acfplot(BMu1.mcmc)
+
+# gelman.diag(BMu1.mcmc)
+# 
+# gelman.plot(BMu1.mcmc)
+
+geweke.diag(BMu1.mcmc)
+#geweke.plot(BMu1.mcmc)
+raftery.diag(BMu1.mcmc)
+# heidel.diag(BMu1.mcmc)
+
+
+```
+
+
+
+### parametro de escala
+
+```{r}
+mc1$chain.scale <- as.data.frame(mc1$chain.scale) %>% 
+  mutate(chain = 1)
+mc2$chain.scale <- as.data.frame(mc2$chain.scale) %>% 
+  mutate(chain = 2)
+mc3$chain.scale <- as.data.frame(mc3$chain.scale) %>% 
+  mutate(chain = 3)
+
+mc.loc <-  mc1$chain.scale %>% 
+  union_all(mc2$chain.scale) %>% union_all(mc3$chain.scale)
+
+post <- posterior_samples(mc.loc, add_chain = T)
+mcmc_dens_overlay(post)
+
+
+post %>% 
+  select(lm1, sill, range, scale1, scale2, scale3, scale4) %>% 
+  mcmc_acf()
+
+post %>% 
+  select(lm1, sill, range, scale1, scale2, scale3, scale4) %>% 
+  mcmc_trace()
+
+post %>% 
+  select(lm1, sill, range, scale1, scale2, scale3, scale4) %>% 
+  mcmc_dens()
+
+
+post %>% select(lm1) %>% mcmc_trace()
+
+
+library(coda)
+
+coda::raftery.diag(posterior_samples(post))
+
+# coda::gelman.diag(mcmc.list(as.mcmc(mc1$chain.scale[,c(-4,-9)]), 
+#                             as.mcmc(mc2$chain.scale[,c(-4,-9)]), 
+#                             as.mcmc(mc3$chain.scale[,c(-4,-9)])))
+# 
+# coda::gelman.diag(mcmc.list(as.mcmc(mc1$chain.scale[,1]), 
+#                             as.mcmc(mc2$chain.scale[,1]), 
+#                             as.mcmc(mc3$chain.scale[,1])))
+
+BMu1.mcmc<-mcmc.list(as.mcmc(mc1$chain.scale[,c(-4,-9)]), 
+                     as.mcmc(mc2$chain.scale[,c(-4,-9)]),
+                     as.mcmc(mc3$chain.scale[,c(-4,-9)]))
+
+summary(BMu1.mcmc)
+xyplot(BMu1.mcmc)
+densityplot(BMu1.mcmc)                             #Densidades
+plot(BMu1.mcmc)
+# layout(matrix(1:12, 3,4));  
+
+traceplot(BMu1.mcmc)
+
+#Grafica de autocorrelacion
+autocorr.plot(BMu1.mcmc, auto.layout = TRUE, ask =F)
+coda::acfplot(BMu1.mcmc)
+
+# gelman.diag(BMu1.mcmc)
+# 
+# gelman.plot(BMu1.mcmc)
+
+geweke.diag(BMu1.mcmc)
+#geweke.plot(BMu1.mcmc)
+raftery.diag(BMu1.mcmc)
+# heidel.diag(BMu1.mcmc)
+
+
+```
+
+
+
+
+
+
+### parametro de forma
+
+```{r}
+mc1$chain.shape <- as.data.frame(mc1$chain.shape) %>% 
+  mutate(chain = 1)
+mc2$chain.shape <- as.data.frame(mc2$chain.shape) %>% 
+  mutate(chain = 2)
+mc3$chain.shape <- as.data.frame(mc3$chain.shape) %>% 
+  mutate(chain = 3)
+
+mc.loc <-  mc1$chain.shape %>% 
+  union_all(mc2$chain.shape) %>% union_all(mc3$chain.shape)
+
+post <- posterior_samples(mc.loc, add_chain = T)
+mcmc_dens_overlay(post)
+
+
+post %>% 
+  select(lm1, sill, range, shape1, shape2, shape3, shape4) %>% 
+  mcmc_acf()
+
+post %>% 
+  select(lm1, sill, range, shape1, shape2, shape3, shape4) %>% 
+  mcmc_trace()
+
+post %>% 
+  select(lm1, sill, range, shape1, shape2, shape3, shape4) %>% 
+  mcmc_dens()
+
+
+post %>% select(lm1) %>% mcmc_trace()
+
+
+library(coda)
+
+coda::raftery.diag(posterior_samples(post))
+
+# coda::gelman.diag(mcmc.list(as.mcmc(mc1$chain.shape[,c(-4,-9)]), 
+#                             as.mcmc(mc2$chain.shape[,c(-4,-9)]), 
+#                             as.mcmc(mc3$chain.shape[,c(-4,-9)])))
+# 
+# coda::gelman.diag(mcmc.list(as.mcmc(mc1$chain.shape[,1]), 
+#                             as.mcmc(mc2$chain.shape[,1]), 
+#                             as.mcmc(mc3$chain.shape[,1])))
+
+BMu1.mcmc<-mcmc.list(as.mcmc(mc1$chain.shape[,c(-4,-9)]), 
+                     as.mcmc(mc2$chain.shape[,c(-4,-9)]),
+                     as.mcmc(mc3$chain.shape[,c(-4,-9)]))
+
+summary(BMu1.mcmc)
+xyplot(BMu1.mcmc)
+densityplot(BMu1.mcmc)                             #Densidades
+plot(BMu1.mcmc)
+# layout(matrix(1:12, 3,4));  
+
+traceplot(BMu1.mcmc)
+
+#Grafica de autocorrelacion
+autocorr.plot(BMu1.mcmc, auto.layout = TRUE, ask =F)
+coda::acfplot(BMu1.mcmc)
+
+# gelman.diag(BMu1.mcmc)
+# 
+# gelman.plot(BMu1.mcmc)
+
+geweke.diag(BMu1.mcmc)
+#geweke.plot(BMu1.mcmc)
+raftery.diag(BMu1.mcmc)
+# heidel.diag(BMu1.mcmc)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### extra
+
+
+
+
+```{r, cache=TRUE, eval=FALSE}
+DIC(mc)
+
+x.grid <- seq(-95, -90, length = 3)
+y.grid <- seq(14, 19, length = 3)
+map.latent(mc1, x.grid, y.grid, param = "quant", ret.per = 100)
+# map.latent(mc, x.grid, y.grid, param = "loc", plot.contour = F)
+# map.latent(mc, x.grid, y.grid, param = "loc", plot.contour = T, show.data = F)
+# map.latent(mc, x.grid, y.grid, param = "loc", plot.contour = T, show.data = T)
+mc1$coord <- my_spdf_c@polygons[[1]]@Polygons[[1]]@coords
+colnames(mc1$coord) <- c("lon", "lat")
+mc1$data
+
+
+class(my_spdf_c@polygons[[1]]@Polygons[[1]]@coords)
+
+
+mybor <- my_spdf_c@polygons[[1]]@Polygons[[1]]@coords
+class(mybor)
+dim(mybor)
+mybor[seq(1, 11880, 2000),1]
+xlim, ylim
+
+map.latent(mc2, 
+           x.grid = mybor[seq(1, 11880, 2000),1], 
+           y.grid = mybor[seq(1, 11880, 2000),2], 
+           param = "quant", 
+           ret.per = 10)
+# head(mc$chain.loc[,6])
+# head(mc$chain.scale)
+# head(mc$chain.shape)
+# head(mc$loc.dsgn.mat)
+# head(mc$scale.dsgn.mat)
+# head(mc$Dbar)
+# summary(mc)
+library(lattice)
+library(coda)
+# autocorr.plot(as.mcmc(mc$chain.loc[,1]))
+# coda::gelman.diag(as.mcmc(mc$chain.loc[,1]))
+BMu1.mcmc<-mcmc.list(as.mcmc(mc$chain.shape[,5]), 
+                     as.mcmc(mc$chain.shape[,6]),
+                     as.mcmc(mc$chain.shape[,7]),
+                     as.mcmc(mc$chain.shape[,8]))
+
+summary(BMu1.mcmc)
+xyplot(BMu1.mcmc)
+densityplot(BMu1.mcmc)                             #Densidades
+plot(BMu1.mcmc)
+# layout(matrix(1:12, 3,4));  
+
+traceplot(BMu1.mcmc)
+
+#Grafica de autocorrelacion
+autocorr.plot(BMu1.mcmc, auto.layout = TRUE, ask =F)
+coda::acfplot(BMu1.mcmc)
+
+gelman.diag(BMu1.mcmc)
+
+gelman.plot(BMu1.mcmc)
+
+geweke.diag(BMu1.mcmc)
+#geweke.plot(BMu1.mcmc)
+raftery.diag(BMu1.mcmc)
+# heidel.diag(BMu1.mcmc)
+
+
+library(lattice)
+library(coda)
+BMu1.mcmc<-mcmc.list(as.mcmc(mc$chain.loc[,5]),
+                     as.mcmc(mc$chain.loc[,6]),
+                     as.mcmc(mc$chain.loc[,7]),
+                     as.mcmc(mc$chain.loc[,8]))
+
+summary(BMu1.mcmc)
+xyplot(BMu1.mcmc)
+densityplot(BMu1.mcmc)                             #Densidades
+plot(BMu1.mcmc)
+# layout(matrix(1:12, 3,4));  
+
+traceplot(BMu1.mcmc)
+
+#Grafica de autocorrelacion
+autocorr.plot(BMu1.mcmc, auto.layout = TRUE, ask =F)
+coda::acfplot(BMu1.mcmc)
+
+gelman.diag(BMu1.mcmc)
+
+gelman.plot(BMu1.mcmc)
+
+geweke.diag(BMu1.mcmc)
+#geweke.plot(BMu1.mcmc)
+# raftery.diag(BMu1.mcmc)
+# heidel.diag(BMu1.mcmc)
+
+
+BMu1.mcmc<-mcmc.list(as.mcmc(mc$chain.scale[,6]),
+                     as.mcmc(mc$chain.scale[,7]),
+                     as.mcmc(mc$chain.scale[,8]),
+                     as.mcmc(mc$chain.scale[,9]),
+                     as.mcmc(mc$chain.scale[,10]))
+
+summary(BMu1.mcmc)
+xyplot(BMu1.mcmc)
+densityplot(BMu1.mcmc)                             #Densidades
+plot(BMu1.mcmc)
+# layout(matrix(1:12, 3,4));  
+
+traceplot(BMu1.mcmc)
+
+#Grafica de autocorrelacion
+autocorr.plot(BMu1.mcmc, auto.layout = TRUE, ask =F)
+coda::acfplot(BMu1.mcmc)
+
+gelman.diag(BMu1.mcmc)
+
+gelman.plot(BMu1.mcmc)
+
+geweke.diag(BMu1.mcmc)
+#geweke.plot(BMu1.mcmc)
+raftery.diag(BMu1.mcmc)
+# heidel.diag(BMu1.mcmc)
+
+```
+
+
